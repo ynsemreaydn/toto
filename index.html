@@ -367,30 +367,33 @@
             </tbody>
         </table>
 
-        <div class="coupon-stats">
-            <h2>Kupon İstatistikleri</h2>
-            <div class="remaining-coupons" id="remainingCoupons">
-                Toplam Kupon: <span id="totalCoupons">0</span>
-            </div>
-            <div class="coupon-stats-grid">
-                <div class="coupon-stat-card">
-                    <div class="coupon-stat-label">15 Bilen</div>
-                    <div class="coupon-stat-value" id="count15">0</div>
-                </div>
-                <div class="coupon-stat-card">
-                    <div class="coupon-stat-label">14 Bilen</div>
-                    <div class="coupon-stat-value" id="count14">0</div>
-                </div>
-                <div class="coupon-stat-card">
-                    <div class="coupon-stat-label">13 Bilen</div>
-                    <div class="coupon-stat-value" id="count13">0</div>
-                </div>
-                <div class="coupon-stat-card">
-                    <div class="coupon-stat-label">12 Bilen</div>
-                    <div class="coupon-stat-value" id="count12">0</div>
-                </div>
-            </div>
-        </div>
+        <h2>Kupon İstatistikleri</h2>
+        <table class="selection-table">
+            <thead>
+                <tr>
+                    <th>Bilen</th>
+                    <th>Kupon Sayısı</th>
+                </tr>
+            </thead>
+            <tbody id="statsTableBody">
+                <tr>
+                    <td><strong>15 Bilen</strong></td>
+                    <td id="count15">0</td>
+                </tr>
+                <tr>
+                    <td><strong>14 Bilen</strong></td>
+                    <td id="count14">0</td>
+                </tr>
+                <tr>
+                    <td><strong>13 Bilen</strong></td>
+                    <td id="count13">0</td>
+                </tr>
+                <tr>
+                    <td><strong>12 Bilen</strong></td>
+                    <td id="count12">0</td>
+                </tr>
+            </tbody>
+        </table>
     </div>
 
         <script>
@@ -4398,64 +4401,54 @@
             const totalCombinations = combinations.length;
             const counts = { 15: 0, 14: 0, 13: 0, 12: 0 };
             
-            // Kalan kupon sayısı = filtrelenmiş kombinasyonlar
-            const totalCoupons = filteredCombinations.length;
-            document.getElementById('totalCoupons').textContent = totalCoupons;
+            // 15 bilen her zaman 0
+            counts[15] = 0;
             
-            if (selectedMatchesCount === 0) {
-                // Hiçbir seçim yok (sabit seçimler de yok - bu durum olmamalı ama yine de)
-                counts[15] = totalCombinations;
-                counts[14] = totalCombinations;
-                counts[13] = totalCombinations;
-                counts[12] = totalCombinations;
-            } else {
-                // Seçimler var - filtrelenmiş kombinasyonlar var
-                if (filteredCombinations.length === 0) {
-                    // Hiçbir kupon eşleşmiyor - seçilen maçlar yanlış
-                    // Bu durumda daha düşük bilen sayıları tüm kombinasyonları içerir
-                    const correctCount = 15 - selectedMatchesCount;
+            // 14 bilen = Seçim Yap ve Filtrele kısmındaki kupon sayısı ile aynı
+            counts[14] = filteredCombinations.length;
+            
+            // 13 ve 12 bilen hesaplama
+            // Seçilmeyenler doğru olarak kabul edilecek
+            const unselectedMatchesCount = 15 - selectedMatchesCount;
+            
+            // 13 bilen: Seçilen maçların 13'ü doğru olanların sayısı
+            // Seçilmeyenler zaten doğru kabul edilir, bu yüzden seçilenlerden 13 - unselectedMatchesCount tanesi doğru olmalı
+            let count13 = 0;
+            let count12 = 0;
+            
+            if (selectedMatchesCount > 0) {
+                // Tüm kombinasyonlar üzerinde döngü (3500 row)
+                combinations.forEach(comb => {
+                    let correctCount = 0;
                     
-                    if (correctCount >= 14) {
-                        counts[14] = totalCombinations;
-                        counts[13] = totalCombinations;
-                        counts[12] = totalCombinations;
-                    } else if (correctCount === 13) {
-                        counts[13] = totalCombinations;
-                        counts[12] = totalCombinations;
-                    } else if (correctCount === 12) {
-                        counts[12] = totalCombinations;
+                    // Seçilen maçların kaç tanesi doğru?
+                    for (let matchNo in allSelections) {
+                        const matchIndex = parseInt(matchNo) - 1; // Maç no 1-15, index 0-14
+                        if (comb.values[matchIndex] === allSelections[matchNo]) {
+                            correctCount++;
+                        }
                     }
-                    counts[15] = 0;
-                } else {
-                    // Filtrelenmiş kombinasyonlar var
-                    // Seçilen maç sayısına göre bilen sayılarını ayarla
-                    if (selectedMatchesCount === 15) {
-                        // 15 maç seçilmiş - 15 bilen = filtrelenmiş kombinasyonlar
-                        counts[15] = filteredCombinations.length;
-                    } else if (selectedMatchesCount === 14) {
-                        // 14 maç seçilmiş - 14 bilen = filtrelenmiş kombinasyonlar
-                        // 13 ve 12 bilen = tüm kombinasyonlar (çünkü 13 veya 12 doğru olabilir)
-                        counts[14] = filteredCombinations.length;
-                        counts[13] = totalCombinations;
-                        counts[12] = totalCombinations;
-                    } else if (selectedMatchesCount === 13) {
-                        // 13 maç seçilmiş - 13 bilen = filtrelenmiş kombinasyonlar
-                        // 12 bilen = tüm kombinasyonlar
-                        counts[13] = filteredCombinations.length;
-                        counts[12] = totalCombinations;
-                    } else if (selectedMatchesCount === 12) {
-                        // 12 maç seçilmiş - 12 bilen = filtrelenmiş kombinasyonlar
-                        counts[12] = filteredCombinations.length;
-                    } else if (selectedMatchesCount < 12) {
-                        // 12'den az maç seçilmiş - 12 bilen = filtrelenmiş kombinasyonlar
-                        // 13 ve 14 bilen = tüm kombinasyonlar (çünkü 13 veya 14 doğru olabilir)
-                        counts[12] = filteredCombinations.length;
-                        counts[13] = totalCombinations;
-                        counts[14] = totalCombinations;
+                    
+                    // Seçilmeyenler doğru kabul edilir
+                    const totalCorrect = correctCount + unselectedMatchesCount;
+                    
+                    if (totalCorrect === 13) {
+                        count13++;
+                    } else if (totalCorrect === 12) {
+                        count12++;
                     }
-                }
+                });
+            } else {
+                // Hiç seçim yoksa, tüm kombinasyonlar 15 bilen olur (ama 15 bilen 0)
+                // 14, 13, 12 bilen = tüm kombinasyonlar
+                count13 = totalCombinations;
+                count12 = totalCombinations;
             }
             
+            counts[13] = count13;
+            counts[12] = count12;
+            
+            // Tabloyu güncelle
             document.getElementById('count15').textContent = counts[15];
             document.getElementById('count14').textContent = counts[14];
             document.getElementById('count13').textContent = counts[13];
