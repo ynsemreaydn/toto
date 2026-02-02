@@ -1,0 +1,18 @@
+# Ignore all files
+*
+
+# But allow index.html
+!index.html
+
+# Allow misli_combinations.csv
+!misli_combinations.csv
+
+# Allow combinations CSV files
+!combinations_*.csv
+
+# Allow matches_data.json
+!matches_data.json
+
+# Allow .gitignore itself
+!.gitignore
+
