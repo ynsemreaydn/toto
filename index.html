@@ -599,9 +599,6 @@
         let combinations = [];
         let selections = {}; // {matchNo: 1|0|2|null}
         let filteredCombinations = [];
-        
-        // Sabit seçimler: 1. maç = 0, 2. maç = 2 (değiştirilemez)
-        const fixedSelections = { 1: 0, 2: 2 };
 
         function renderMatchesTable() {
             const tbody = document.getElementById('matchesTableBody');
@@ -710,21 +707,11 @@
                 tdSelection.className = 'selection-buttons';
                 tdSelection.setAttribute('data-label', 'Seçim');
                 
-                // Sabit seçimler için kontrol
-                const isFixed = fixedSelections.hasOwnProperty(match.no);
-                const fixedValue = isFixed ? fixedSelections[match.no] : null;
-                
                 const btn1 = document.createElement('button');
                 btn1.className = 'selection-btn';
                 btn1.textContent = '1';
-                if (isFixed) {
-                    btn1.disabled = true;
-                    btn1.style.opacity = '0.5';
-                    btn1.style.cursor = 'not-allowed';
-                } else {
-                    btn1.onclick = () => toggleSelection(match.no, 1);
-                }
-                if (selections[match.no] === 1 || fixedValue === 1) {
+                btn1.onclick = () => toggleSelection(match.no, 1);
+                if (selections[match.no] === 1) {
                     btn1.classList.add('selected-1');
                 }
                 tdSelection.appendChild(btn1);
@@ -732,14 +719,8 @@
                 const btn0 = document.createElement('button');
                 btn0.className = 'selection-btn';
                 btn0.textContent = 'X';
-                if (isFixed) {
-                    btn0.disabled = true;
-                    btn0.style.opacity = '0.5';
-                    btn0.style.cursor = 'not-allowed';
-                } else {
-                    btn0.onclick = () => toggleSelection(match.no, 0);
-                }
-                if (selections[match.no] === 0 || fixedValue === 0) {
+                btn0.onclick = () => toggleSelection(match.no, 0);
+                if (selections[match.no] === 0) {
                     btn0.classList.add('selected-0');
                 }
                 tdSelection.appendChild(btn0);
@@ -747,14 +728,8 @@
                 const btn2 = document.createElement('button');
                 btn2.className = 'selection-btn';
                 btn2.textContent = '2';
-                if (isFixed) {
-                    btn2.disabled = true;
-                    btn2.style.opacity = '0.5';
-                    btn2.style.cursor = 'not-allowed';
-                } else {
-                    btn2.onclick = () => toggleSelection(match.no, 2);
-                }
-                if (selections[match.no] === 2 || fixedValue === 2) {
+                btn2.onclick = () => toggleSelection(match.no, 2);
+                if (selections[match.no] === 2) {
                     btn2.classList.add('selected-2');
                 }
                 tdSelection.appendChild(btn2);
@@ -775,13 +750,7 @@
         }
 
         function toggleSelection(matchNo, value) {
-            // Sabit seçimler değiştirilemez
-            if (fixedSelections.hasOwnProperty(matchNo)) {
-                return;
-            }
-            
             if (selections[matchNo] === value) {
-                // Aynı seçimi tekrar tıklarsa seçimi kaldır
                 delete selections[matchNo];
             } else {
                 selections[matchNo] = value;
@@ -794,13 +763,10 @@
         }
 
         function filterCombinations() {
-            // Sabit seçimleri de dahil et
-            const allSelections = Object.assign({}, fixedSelections, selections);
-            
             filteredCombinations = combinations.filter(comb => {
-                for (let matchNo in allSelections) {
-                    const matchIndex = parseInt(matchNo) - 1; // Maç no 1-15, index 0-14
-                    if (comb.values[matchIndex] !== allSelections[matchNo]) {
+                for (let matchNo in selections) {
+                    const matchIndex = parseInt(matchNo) - 1;
+                    if (comb.values[matchIndex] !== selections[matchNo]) {
                         return false;
                     }
                 }
@@ -812,59 +778,24 @@
             matchesData.forEach(match => {
                 const remainingElement = document.getElementById(`remaining-${match.no}`);
                 if (!remainingElement) return;
-                
-                // 1. ve 2. maç için: Her zaman toplam kupon sayısını göster
-                if (match.no === 1 || match.no === 2) {
-                    remainingElement.textContent = combinations.length;
-                    return;
-                }
-                
-                // 3-15 arası maçlar için:
-                // 1. maça bakma (herhangi bir değer olabilir), 2. maça bak (2 olmalı), kullanıcı seçimlerine bak
-                const userSelections = {};
-                for (let matchNo in selections) {
-                    const matchNum = parseInt(matchNo);
-                    // Sadece 3-15 arası maçları dahil et
-                    if (matchNum >= 3 && matchNum <= 15) {
-                        userSelections[matchNum] = selections[matchNum];
-                    }
-                }
-                
+                const matchIndex = match.no - 1;
                 if (selections[match.no] !== undefined) {
-                    // Kullanıcı seçimi var - 2. maça bak (2 olmalı) ve kullanıcı seçimlerine göre filtrele (1. maça bakma)
                     const count = combinations.filter(comb => {
-                        // 2. maç = 2 olmalı (index 1)
-                        if (comb.values[1] !== 2) {
-                            return false;
-                        }
-                        // 3-15 arası maçlardaki kullanıcı seçimlerine göre kontrol et
-                        for (let matchNo in userSelections) {
-                            const matchIndex = parseInt(matchNo) - 1; // Maç no 1-15, index 0-14
-                            if (comb.values[matchIndex] !== userSelections[matchNo]) {
-                                return false;
-                            }
+                        for (let matchNo in selections) {
+                            const idx = parseInt(matchNo) - 1;
+                            if (comb.values[idx] !== selections[matchNo]) return false;
                         }
                         return true;
                     }).length;
                     remainingElement.textContent = count;
                 } else {
-                    // Kullanıcı seçimi yok - 2. maça bak (2 olmalı) ve bu maçın her seçeneği için topla (1. maça bakma)
                     let totalCount = 0;
-                    
-                    // Bu maçın her seçeneği (0, 1, 2) için say
                     for (let option of [0, 1, 2]) {
-                        const tempSelections = Object.assign({}, userSelections, { [match.no]: option });
+                        const tempSelections = Object.assign({}, selections, { [match.no]: option });
                         const count = combinations.filter(comb => {
-                            // 2. maç = 2 olmalı (index 1)
-                            if (comb.values[1] !== 2) {
-                                return false;
-                            }
-                            // 3-15 arası maçlardaki seçimlere göre kontrol et
                             for (let matchNo in tempSelections) {
-                                const matchIndex = parseInt(matchNo) - 1;
-                                if (comb.values[matchIndex] !== tempSelections[matchNo]) {
-                                    return false;
-                                }
+                                const idx = parseInt(matchNo) - 1;
+                                if (comb.values[idx] !== tempSelections[matchNo]) return false;
                             }
                             return true;
                         }).length;
@@ -876,29 +807,21 @@
         }
 
         function updateStats() {
-            // Sabit seçimleri de dahil et
-            const allSelections = Object.assign({}, fixedSelections, selections);
-            const selectedMatchesCount = Object.keys(allSelections).length;
+            const selectedMatchesCount = Object.keys(selections).length;
             const totalCombinations = combinations.length;
             const counts = { 15: 0, 14: 0, 13: 0, 12: 0 };
             
-            // Kalan kupon sayısı = filtrelenmiş kombinasyonlar
             const totalCoupons = filteredCombinations.length;
             document.getElementById('totalCoupons').textContent = totalCoupons;
             
             if (selectedMatchesCount === 0) {
-                // Hiçbir seçim yok (sabit seçimler de yok - bu durum olmamalı ama yine de)
                 counts[15] = totalCombinations;
                 counts[14] = totalCombinations;
                 counts[13] = totalCombinations;
                 counts[12] = totalCombinations;
             } else {
-                // Seçimler var - filtrelenmiş kombinasyonlar var
                 if (filteredCombinations.length === 0) {
-                    // Hiçbir kupon eşleşmiyor - seçilen maçlar yanlış
-                    // Bu durumda daha düşük bilen sayıları tüm kombinasyonları içerir
                     const correctCount = 15 - selectedMatchesCount;
-                    
                     if (correctCount >= 14) {
                         counts[14] = totalCombinations;
                         counts[13] = totalCombinations;
@@ -911,28 +834,18 @@
                     }
                     counts[15] = 0;
                 } else {
-                    // Filtrelenmiş kombinasyonlar var
-                    // Seçilen maç sayısına göre bilen sayılarını ayarla
                     if (selectedMatchesCount === 15) {
-                        // 15 maç seçilmiş - 15 bilen = filtrelenmiş kombinasyonlar
                         counts[15] = filteredCombinations.length;
                     } else if (selectedMatchesCount === 14) {
-                        // 14 maç seçilmiş - 14 bilen = filtrelenmiş kombinasyonlar
-                        // 13 ve 12 bilen = tüm kombinasyonlar (çünkü 13 veya 12 doğru olabilir)
                         counts[14] = filteredCombinations.length;
                         counts[13] = totalCombinations;
                         counts[12] = totalCombinations;
                     } else if (selectedMatchesCount === 13) {
-                        // 13 maç seçilmiş - 13 bilen = filtrelenmiş kombinasyonlar
-                        // 12 bilen = tüm kombinasyonlar
                         counts[13] = filteredCombinations.length;
                         counts[12] = totalCombinations;
                     } else if (selectedMatchesCount === 12) {
-                        // 12 maç seçilmiş - 12 bilen = filtrelenmiş kombinasyonlar
                         counts[12] = filteredCombinations.length;
                     } else if (selectedMatchesCount < 12) {
-                        // 12'den az maç seçilmiş - 12 bilen = filtrelenmiş kombinasyonlar
-                        // 13 ve 14 bilen = tüm kombinasyonlar (çünkü 13 veya 14 doğru olabilir)
                         counts[12] = filteredCombinations.length;
                         counts[13] = totalCombinations;
                         counts[14] = totalCombinations;
@@ -945,26 +858,23 @@
             document.getElementById('count13').textContent = counts[13];
             document.getElementById('count12').textContent = counts[12];
             
-            // Filtre bilgisi
-            const userSelectedCount = Object.keys(selections).length;
-            const totalSelectedCount = Object.keys(allSelections).length;
-            if (userSelectedCount === 0) {
+            if (selectedMatchesCount === 0) {
                 document.getElementById('filterInfo').textContent = 
-                    `${totalSelectedCount} maç sabit seçim (1. maç=0, 2. maç=2). ${filteredCombinations.length} kupon kaldı.`;
-                document.getElementById('filterInfo').style.background = '#d1ecf1';
-                document.getElementById('filterInfo').style.borderColor = '#0c5460';
+                    `Henüz seçim yapılmadı. ${totalCombinations} kupon var. Her maç için 1, X veya 2 seçerek filtreleme yapabilirsiniz.`;
             } else {
                 document.getElementById('filterInfo').textContent = 
-                    `${totalSelectedCount} maç için seçim yapıldı. ${filteredCombinations.length} kupon kaldı.`;
-                document.getElementById('filterInfo').style.background = '#d1ecf1';
-                document.getElementById('filterInfo').style.borderColor = '#0c5460';
+                    `${selectedMatchesCount} maç için seçim yapıldı. ${filteredCombinations.length} kupon kaldı.`;
             }
+            document.getElementById('filterInfo').style.background = '#d1ecf1';
+            document.getElementById('filterInfo').style.borderColor = '#0c5460';
         }
 
         async function loadData() {
             try {
                 // Kombinasyonlar combinations_latest_fetched.csv dosyasından yüklenir
-                const csvUrl = 'combinations_latest_fetched.csv';
+                // GitHub Pages için base path: /toto/ veya mevcut dizin
+                const base = window.location.pathname.replace(/\/[^/]*$/, '/') || '/';
+                const csvUrl = base + 'combinations_latest_fetched.csv';
                 const response = await fetch(csvUrl);
                 if (!response.ok) throw new Error(`CSV yüklenemedi: ${response.status} ${response.statusText}`);
                 const text = await response.text();
@@ -992,10 +902,6 @@
                     return { id: index + 1, values };
                 }).filter(Boolean);
 
-                // Sabit seçimleri ekle
-                Object.assign(selections, fixedSelections);
-                
-                // Sabit seçimlere göre filtrele
                 filterCombinations();
                 
                 renderMatchesTable();
