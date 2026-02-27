@@ -970,8 +970,22 @@
                 const text = await response.text();
                 const lines = text.trim().split(/\r?\n/).filter(line => line.length > 0);
                 if (lines.length < 2) throw new Error('CSV dosyasında veri satırı yok');
-                // İlk satır başlık (1;2;3;...;15), veri satırları 2. satırdan itibaren
-                const dataLines = lines.slice(1);
+
+                // İlk satır: maç adları (1 - Karşılaşma;2 - Karşılaşma;...) veya sayısal başlık (1;2;3;...;15)
+                const firstLine = lines[0];
+                let dataStartIndex = 1;
+                if (firstLine.indexOf(' - ') !== -1) {
+                    // Maç adları satırı: her hücre "N - Karşılaşma" formatında
+                    const cells = firstLine.split(';');
+                    for (let i = 0; i < cells.length && i < matchesData.length; i++) {
+                        const cell = cells[i].trim();
+                        const dashIdx = cell.indexOf(' - ');
+                        matchesData[i].karsilasma = dashIdx >= 0 ? cell.substring(dashIdx + 3).trim() : cell;
+                    }
+                    dataStartIndex = 2; // Veri satırları 3. satırdan itibaren (2. satır 1;2;3;...;15)
+                }
+
+                const dataLines = lines.slice(dataStartIndex);
                 combinations = dataLines.map((line, index) => {
                     const values = line.split(';').slice(0, 15).map(s => parseInt(s, 10));
                     if (values.length !== 15 || values.some(n => isNaN(n))) return null;
