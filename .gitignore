@@ -13,6 +13,10 @@
 # Allow matches_data.json
 !matches_data.json
 
+# Allow hedef export (maç isimleri/tarih)
+!hedef.json
+!export_hedef.py
+
 # Allow .gitignore itself
 !.gitignore
 

@@ -871,29 +871,45 @@
 
         async function loadData() {
             try {
-                // Kombinasyonlar combinations_latest_fetched.csv dosyasından yüklenir
-                // GitHub Pages için base path: /toto/ veya mevcut dizin
                 const base = window.location.pathname.replace(/\/[^/]*$/, '/') || '/';
                 const csvUrl = base + 'combinations_latest_fetched.csv';
-                const response = await fetch(csvUrl);
-                if (!response.ok) throw new Error(`CSV yüklenemedi: ${response.status} ${response.statusText}`);
-                const text = await response.text();
+                const hedefUrl = base + 'hedef.json';
+
+                // CSV ve hedef.json'u paralel yükle (hedef: maç isimleri, tarih)
+                const [csvResponse, hedefResponse] = await Promise.all([
+                    fetch(csvUrl),
+                    fetch(hedefUrl).catch(() => null)
+                ]);
+                if (!csvResponse.ok) throw new Error(`CSV yüklenemedi: ${csvResponse.status} ${csvResponse.statusText}`);
+                const text = await csvResponse.text();
                 const lines = text.trim().split(/\r?\n/).filter(line => line.length > 0);
                 if (lines.length < 2) throw new Error('CSV dosyasında veri satırı yok');
 
-                // İlk satır: maç adları (1 - Karşılaşma;2 - Karşılaşma;...) veya sayısal başlık (1;2;3;...;15)
-                const firstLine = lines[0];
-                let dataStartIndex = 1;
-                if (firstLine.indexOf(' - ') !== -1) {
-                    // Maç adları satırı: her hücre "N - Karşılaşma" formatında
-                    const cells = firstLine.split(';');
-                    for (let i = 0; i < cells.length && i < matchesData.length; i++) {
-                        const cell = cells[i].trim();
-                        const dashIdx = cell.indexOf(' - ');
-                        matchesData[i].karsilasma = dashIdx >= 0 ? cell.substring(dashIdx + 3).trim() : cell;
+                // Hedef dosyasından maç isimleri ve tarihleri (hedef.json hedef.xlsx'ten üretilir)
+                if (hedefResponse && hedefResponse.ok) {
+                    const hedefList = await hedefResponse.json();
+                    hedefList.forEach(entry => {
+                        const idx = entry.no - 1;
+                        if (idx >= 0 && idx < matchesData.length) {
+                            matchesData[idx].tarih = entry.tarih || matchesData[idx].tarih;
+                            matchesData[idx].karsilasma = entry.karsilasma || matchesData[idx].karsilasma;
+                        }
+                    });
+                } else {
+                    // Fallback: CSV ilk satırındaki maç adları (1 - Karşılaşma; ...)
+                    const firstLine = lines[0];
+                    if (firstLine.indexOf(' - ') !== -1) {
+                        const cells = firstLine.split(';');
+                        for (let i = 0; i < cells.length && i < matchesData.length; i++) {
+                            const cell = cells[i].trim();
+                            const dashIdx = cell.indexOf(' - ');
+                            matchesData[i].karsilasma = dashIdx >= 0 ? cell.substring(dashIdx + 3).trim() : cell;
+                        }
                     }
-                    dataStartIndex = 2; // Veri satırları 3. satırdan itibaren (2. satır 1;2;3;...;15)
                 }
+
+                let dataStartIndex = 1;
+                if (lines[0].indexOf(' - ') !== -1) dataStartIndex = 2;
 
                 const dataLines = lines.slice(dataStartIndex);
                 combinations = dataLines.map((line, index) => {
@@ -901,6 +917,26 @@
                     if (values.length !== 15 || values.some(n => isNaN(n))) return null;
                     return { id: index + 1, values };
                 }).filter(Boolean);
+
+                // Maç listesi yüzdelerini ve sayılarını yüklenen kombinasyonlardan hesapla (toplam 2983)
+                const total = combinations.length;
+                for (let i = 0; i < 15 && i < matchesData.length; i++) {
+                    let c1 = 0, c0 = 0, c2 = 0;
+                    combinations.forEach(comb => {
+                        if (comb.values[i] === 1) c1++;
+                        else if (comb.values[i] === 0) c0++;
+                        else if (comb.values[i] === 2) c2++;
+                    });
+                    matchesData[i].comb_1_count = c1;
+                    matchesData[i].comb_0_count = c0;
+                    matchesData[i].comb_2_count = c2;
+                    matchesData[i].comb_1_pct = total ? (c1 / total) * 100 : 0;
+                    matchesData[i].comb_0_pct = total ? (c0 / total) * 100 : 0;
+                    matchesData[i].comb_2_pct = total ? (c2 / total) * 100 : 0;
+                    matchesData[i].oran_1 = total ? c1 / total : 0;
+                    matchesData[i].oran_x = total ? c0 / total : 0;
+                    matchesData[i].oran_2 = total ? c2 / total : 0;
+                }
 
                 filterCombinations();
                 
@@ -911,7 +947,7 @@
             } catch (error) {
                 const errorDiv = document.createElement('div');
                 errorDiv.className = 'error';
-                errorDiv.innerHTML = `<h2>Hata: ${error.message}</h2><p>combinations_latest_fetched.csv dosyasının sayfa ile aynı dizinde olduğundan emin olun (örn. GitHub Pages).</p>`;
+                errorDiv.innerHTML = `<h2>Hata: ${error.message}</h2><p>combinations_latest_fetched.csv ve hedef.json dosyalarının sayfa ile aynı dizinde olduğundan emin olun (örn. GitHub Pages).</p>`;
                 document.body.innerHTML = '';
                 document.body.appendChild(errorDiv);
             }
