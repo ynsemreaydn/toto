@@ -9,6 +9,7 @@
 
 # Allow combinations CSV files
 !combinations_*.csv
+!combinations_latest.csv
 
 # Allow matches_data.json
 !matches_data.json

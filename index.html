@@ -378,8 +378,7 @@
     </div>
 
         <script>
-        // Kombinasyonlar combinations_latest.csv dosyasından yüklenir (fetch ile).
-        // Maç satırları yer tutucu; isim/tarih CSV başlığında " - " varsa oradan, yoksa Maç N.
+        // Kombinasyonlar combinations_latest.csv; maç adı/tarih hedef.json (export_hedef.py) veya CSV ilk satırı.
         const matchesData = Array.from({ length: 15 }, (_, i) => ({
             no: i + 1,
             tarih: '',
@@ -675,14 +674,29 @@
             try {
                 const base = window.location.pathname.replace(/\/[^/]*$/, '/') || '/';
                 const csvUrl = base + 'combinations_latest.csv';
+                const hedefUrl = base + 'hedef.json';
 
-                const csvResponse = await fetch(csvUrl);
+                const [csvResponse, hedefResponse] = await Promise.all([
+                    fetch(csvUrl),
+                    fetch(hedefUrl).catch(() => null),
+                ]);
                 if (!csvResponse.ok) throw new Error(`CSV yüklenemedi: ${csvResponse.status} ${csvResponse.statusText}`);
                 const text = await csvResponse.text();
                 const lines = text.trim().split(/\r?\n/).filter(line => line.length > 0);
                 if (lines.length < 2) throw new Error('CSV dosyasında veri satırı yok');
 
-                // CSV ilk satırında maç adları (örn. "1 - Takım A-Takım B; ...") varsa kullan
+                if (hedefResponse && hedefResponse.ok) {
+                    const hedefList = await hedefResponse.json();
+                    hedefList.forEach(entry => {
+                        const idx = entry.no - 1;
+                        if (idx >= 0 && idx < matchesData.length) {
+                            matchesData[idx].tarih = entry.tarih || matchesData[idx].tarih;
+                            matchesData[idx].karsilasma = entry.karsilasma || matchesData[idx].karsilasma;
+                        }
+                    });
+                }
+
+                // CSV ilk satırında maç adları (örn. "1 - Takım A-Takım B; ...") varsa kullan (hedef yoksa yedek)
                 const firstLine = lines[0];
                 if (firstLine.indexOf(' - ') !== -1) {
                     const cells = firstLine.split(';');
@@ -733,7 +747,7 @@
             } catch (error) {
                 const errorDiv = document.createElement('div');
                 errorDiv.className = 'error';
-                errorDiv.innerHTML = `<h2>Hata: ${error.message}</h2><p>combinations_latest.csv dosyasının sayfa ile aynı dizinde olduğundan emin olun (örn. GitHub Pages).</p>`;
+                errorDiv.innerHTML = `<h2>Hata: ${error.message}</h2><p>combinations_latest.csv gerekli; maç isimleri için hedef.json (export_hedef.py ile üretilir) aynı dizinde olmalı.</p>`;
                 document.body.innerHTML = '';
                 document.body.appendChild(errorDiv);
             }
