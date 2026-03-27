@@ -246,8 +246,6 @@
             color: #666;
         }
 
-        }
-
         .error {
             text-align: center;
             padding: 50px;
@@ -380,221 +378,22 @@
     </div>
 
         <script>
-        // Kombinasyonlar combinations_latest_fetched.csv dosyasından yüklenir (fetch ile)
-
-        // Maç verileri doğrudan embed edildi
-        const matchesData = [
-          {
-            "no": 1,
-            "tarih": "27.02.2026 20:00",
-            "karsilasma": "Başakşehir FK-Konyaspor",
-            "oran_1": 0.0,
-            "oran_x": 0.0,
-            "oran_2": 1.0,
-            "comb_1_count": 0,
-            "comb_1_pct": 0.0,
-            "comb_0_count": 0,
-            "comb_0_pct": 0.0,
-            "comb_2_count": 15,
-            "comb_2_pct": 100.0
-          },
-          {
-            "no": 2,
-            "tarih": "27.02.2026 20:00",
-            "karsilasma": "Trabzonspor A.Ş.-Fatih Karagümrük",
-            "oran_1": 0.7333,
-            "oran_x": 0.0,
-            "oran_2": 0.2667,
-            "comb_1_count": 11,
-            "comb_1_pct": 73.33,
-            "comb_0_count": 0,
-            "comb_0_pct": 0.0,
-            "comb_2_count": 4,
-            "comb_2_pct": 26.67
-          },
-          {
-            "no": 3,
-            "tarih": "28.02.2026 13:30",
-            "karsilasma": "Kasımpaşa A.Ş.-Çaykur Rizespor A.Ş.",
-            "oran_1": 0.5333,
-            "oran_x": 0.4667,
-            "oran_2": 0.0,
-            "comb_1_count": 8,
-            "comb_1_pct": 53.33,
-            "comb_0_count": 7,
-            "comb_0_pct": 46.67,
-            "comb_2_count": 0,
-            "comb_2_pct": 0.0
-          },
-          {
-            "no": 4,
-            "tarih": "28.02.2026 16:00",
-            "karsilasma": "Kocaelispor-Beşiktaş A.Ş.",
-            "oran_1": 0.6667,
-            "oran_x": 0.3333,
-            "oran_2": 0.0,
-            "comb_1_count": 10,
-            "comb_1_pct": 66.67,
-            "comb_0_count": 5,
-            "comb_0_pct": 33.33,
-            "comb_2_count": 0,
-            "comb_2_pct": 0.0
-          },
-          {
-            "no": 5,
-            "tarih": "28.02.2026 20:00",
-            "karsilasma": "Galatasaray A.Ş.-Alanyaspor",
-            "oran_1": 0.8667,
-            "oran_x": 0.1333,
-            "oran_2": 0.0,
-            "comb_1_count": 13,
-            "comb_1_pct": 86.67,
-            "comb_0_count": 2,
-            "comb_0_pct": 13.33,
-            "comb_2_count": 0,
-            "comb_2_pct": 0.0
-          },
-          {
-            "no": 6,
-            "tarih": "28.02.2026 20:00",
-            "karsilasma": "Göztepe A.Ş.-Eyüpspor",
-            "oran_1": 1.0,
-            "oran_x": 0.0,
-            "oran_2": 0.0,
-            "comb_1_count": 15,
-            "comb_1_pct": 100.0,
-            "comb_0_count": 0,
-            "comb_0_pct": 0.0,
-            "comb_2_count": 0,
-            "comb_2_pct": 0.0
-          },
-          {
-            "no": 7,
-            "tarih": "01.03.2026 16:00",
-            "karsilasma": "Gençlerbirliği-Kayserispor",
-            "oran_1": 0.2667,
-            "oran_x": 0.3333,
-            "oran_2": 0.4,
-            "comb_1_count": 4,
-            "comb_1_pct": 26.67,
-            "comb_0_count": 5,
-            "comb_0_pct": 33.33,
-            "comb_2_count": 6,
-            "comb_2_pct": 40.0
-          },
-          {
-            "no": 8,
-            "tarih": "01.03.2026 20:00",
-            "karsilasma": "Antalyaspor-Fenerbahçe A.Ş.",
-            "oran_1": 1.0,
-            "oran_x": 0.0,
-            "oran_2": 0.0,
-            "comb_1_count": 15,
-            "comb_1_pct": 100.0,
-            "comb_0_count": 0,
-            "comb_0_pct": 0.0,
-            "comb_2_count": 0,
-            "comb_2_pct": 0.0
-          },
-          {
-            "no": 9,
-            "tarih": "01.03.2026 20:00",
-            "karsilasma": "Samsunspor A.Ş.-Gaziantep F.K. A.Ş.",
-            "oran_1": 0.0,
-            "oran_x": 0.0,
-            "oran_2": 1.0,
-            "comb_1_count": 0,
-            "comb_1_pct": 0.0,
-            "comb_0_count": 0,
-            "comb_0_pct": 0.0,
-            "comb_2_count": 15,
-            "comb_2_pct": 100.0
-          },
-          {
-            "no": 10,
-            "tarih": "28.02.2026 20:30",
-            "karsilasma": "B. Dortmund-Bayern Münih",
-            "oran_1": 0.0667,
-            "oran_x": 0.0,
-            "oran_2": 0.9333,
-            "comb_1_count": 1,
-            "comb_1_pct": 6.67,
-            "comb_0_count": 0,
-            "comb_0_pct": 0.0,
-            "comb_2_count": 14,
-            "comb_2_pct": 93.33
-          },
-          {
-            "no": 11,
-            "tarih": "01.03.2026 19:30",
-            "karsilasma": "Eintracht Frankfurt-Freiburg",
-            "oran_1": 1.0,
-            "oran_x": 0.0,
-            "oran_2": 0.0,
-            "comb_1_count": 15,
-            "comb_1_pct": 100.0,
-            "comb_0_count": 0,
-            "comb_0_pct": 0.0,
-            "comb_2_count": 0,
-            "comb_2_pct": 0.0
-          },
-          {
-            "no": 12,
-            "tarih": "28.02.2026 15:30",
-            "karsilasma": "Bournemouth-Sunderland",
-            "oran_1": 0.4667,
-            "oran_x": 0.3333,
-            "oran_2": 0.2,
-            "comb_1_count": 7,
-            "comb_1_pct": 46.67,
-            "comb_0_count": 5,
-            "comb_0_pct": 33.33,
-            "comb_2_count": 3,
-            "comb_2_pct": 20.0
-          },
-          {
-            "no": 13,
-            "tarih": "28.02.2026 18:00",
-            "karsilasma": "Newcastle United-Everton",
-            "oran_1": 0.0,
-            "oran_x": 0.0,
-            "oran_2": 1.0,
-            "comb_1_count": 0,
-            "comb_1_pct": 0.0,
-            "comb_0_count": 0,
-            "comb_0_pct": 0.0,
-            "comb_2_count": 15,
-            "comb_2_pct": 100.0
-          },
-          {
-            "no": 14,
-            "tarih": "01.03.2026 19:30",
-            "karsilasma": "Arsenal-Chelsea",
-            "oran_1": 0.7333,
-            "oran_x": 0.2,
-            "oran_2": 0.0667,
-            "comb_1_count": 11,
-            "comb_1_pct": 73.33,
-            "comb_0_count": 3,
-            "comb_0_pct": 20.0,
-            "comb_2_count": 1,
-            "comb_2_pct": 6.67
-          },
-          {
-            "no": 15,
-            "tarih": "28.02.2026 18:15",
-            "karsilasma": "Barcelona-Villarreal",
-            "oran_1": 0.4667,
-            "oran_x": 0.4,
-            "oran_2": 0.1333,
-            "comb_1_count": 7,
-            "comb_1_pct": 46.67,
-            "comb_0_count": 6,
-            "comb_0_pct": 40.0,
-            "comb_2_count": 2,
-            "comb_2_pct": 13.33
-          }
-        ];
+        // Kombinasyonlar combinations_latest.csv dosyasından yüklenir (fetch ile).
+        // Maç satırları yer tutucu; isim/tarih CSV başlığında " - " varsa oradan, yoksa Maç N.
+        const matchesData = Array.from({ length: 15 }, (_, i) => ({
+            no: i + 1,
+            tarih: '',
+            karsilasma: `Maç ${i + 1}`,
+            oran_1: 0,
+            oran_x: 0,
+            oran_2: 0,
+            comb_1_count: 0,
+            comb_1_pct: 0,
+            comb_0_count: 0,
+            comb_0_pct: 0,
+            comb_2_count: 0,
+            comb_2_pct: 0,
+        }));
 
         let combinations = [];
         let selections = {}; // {matchNo: 1|0|2|null}
@@ -865,60 +664,47 @@
                 document.getElementById('filterInfo').textContent = 
                     `${selectedMatchesCount} maç için seçim yapıldı. ${filteredCombinations.length} kupon kaldı.`;
             }
-            document.getElementById('filterInfo').style.background = '#d1ecf1';
-            document.getElementById('filterInfo').style.borderColor = '#0c5460';
+        }
+
+        function parseOutcomeCell(s) {
+            const t = String(s).trim().replace(/^\*/, '');
+            return parseInt(t, 10);
         }
 
         async function loadData() {
             try {
                 const base = window.location.pathname.replace(/\/[^/]*$/, '/') || '/';
-                const csvUrl = base + 'combinations_latest_fetched.csv';
-                const hedefUrl = base + 'hedef.json';
+                const csvUrl = base + 'combinations_latest.csv';
 
-                // CSV ve hedef.json'u paralel yükle (hedef: maç isimleri, tarih)
-                const [csvResponse, hedefResponse] = await Promise.all([
-                    fetch(csvUrl),
-                    fetch(hedefUrl).catch(() => null)
-                ]);
+                const csvResponse = await fetch(csvUrl);
                 if (!csvResponse.ok) throw new Error(`CSV yüklenemedi: ${csvResponse.status} ${csvResponse.statusText}`);
                 const text = await csvResponse.text();
                 const lines = text.trim().split(/\r?\n/).filter(line => line.length > 0);
                 if (lines.length < 2) throw new Error('CSV dosyasında veri satırı yok');
 
-                // Hedef dosyasından maç isimleri ve tarihleri (hedef.json hedef.xlsx'ten üretilir)
-                if (hedefResponse && hedefResponse.ok) {
-                    const hedefList = await hedefResponse.json();
-                    hedefList.forEach(entry => {
-                        const idx = entry.no - 1;
-                        if (idx >= 0 && idx < matchesData.length) {
-                            matchesData[idx].tarih = entry.tarih || matchesData[idx].tarih;
-                            matchesData[idx].karsilasma = entry.karsilasma || matchesData[idx].karsilasma;
-                        }
-                    });
-                } else {
-                    // Fallback: CSV ilk satırındaki maç adları (1 - Karşılaşma; ...)
-                    const firstLine = lines[0];
-                    if (firstLine.indexOf(' - ') !== -1) {
-                        const cells = firstLine.split(';');
-                        for (let i = 0; i < cells.length && i < matchesData.length; i++) {
-                            const cell = cells[i].trim();
-                            const dashIdx = cell.indexOf(' - ');
-                            matchesData[i].karsilasma = dashIdx >= 0 ? cell.substring(dashIdx + 3).trim() : cell;
-                        }
+                // CSV ilk satırında maç adları (örn. "1 - Takım A-Takım B; ...") varsa kullan
+                const firstLine = lines[0];
+                if (firstLine.indexOf(' - ') !== -1) {
+                    const cells = firstLine.split(';');
+                    for (let i = 0; i < cells.length && i < matchesData.length; i++) {
+                        const cell = cells[i].trim();
+                        const dashIdx = cell.indexOf(' - ');
+                        matchesData[i].karsilasma = dashIdx >= 0 ? cell.substring(dashIdx + 3).trim() : cell;
                     }
                 }
 
                 let dataStartIndex = 1;
-                if (lines[0].indexOf(' - ') !== -1) dataStartIndex = 2;
+                if (firstLine.indexOf(' - ') !== -1) dataStartIndex = 2;
 
                 const dataLines = lines.slice(dataStartIndex);
                 combinations = dataLines.map((line, index) => {
-                    const values = line.split(';').slice(0, 15).map(s => parseInt(s, 10));
+                    const raw = line.split(';').slice(0, 15);
+                    const values = raw.map(parseOutcomeCell);
                     if (values.length !== 15 || values.some(n => isNaN(n))) return null;
                     return { id: index + 1, values };
                 }).filter(Boolean);
 
-                // Maç listesi yüzdelerini ve sayılarını yüklenen kombinasyonlardan hesapla (toplam 2983)
+                // Maç listesi yüzdelerini ve sayılarını yüklenen kombinasyonlardan hesapla
                 const total = combinations.length;
                 for (let i = 0; i < 15 && i < matchesData.length; i++) {
                     let c1 = 0, c0 = 0, c2 = 0;
@@ -947,7 +733,7 @@
             } catch (error) {
                 const errorDiv = document.createElement('div');
                 errorDiv.className = 'error';
-                errorDiv.innerHTML = `<h2>Hata: ${error.message}</h2><p>combinations_latest_fetched.csv ve hedef.json dosyalarının sayfa ile aynı dizinde olduğundan emin olun (örn. GitHub Pages).</p>`;
+                errorDiv.innerHTML = `<h2>Hata: ${error.message}</h2><p>combinations_latest.csv dosyasının sayfa ile aynı dizinde olduğundan emin olun (örn. GitHub Pages).</p>`;
                 document.body.innerHTML = '';
                 document.body.appendChild(errorDiv);
             }
