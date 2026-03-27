@@ -378,7 +378,7 @@
     </div>
 
         <script>
-        // Kombinasyonlar combinations_latest.csv; maç adı/tarih hedef.json (export_hedef.py) veya CSV ilk satırı.
+        // Kombinasyonlar combinations_misli_fetched.csv; maç bilgisi önce burada (file:// için), sonra hedef.json ile güncellenir.
         const matchesData = Array.from({ length: 15 }, (_, i) => ({
             no: i + 1,
             tarih: '',
@@ -393,6 +393,45 @@
             comb_2_count: 0,
             comb_2_pct: 0,
         }));
+
+        // hedef (7).xlsx / export_hedef.py ile uyumlu varsayılan (fetch başarısız olsa bile doğru tablo)
+        const HEDEF_DEFAULTS = [
+            { no: 1, tarih: '28.03.2026 18:00', karsilasma: 'Blackpool-Burton Albion' },
+            { no: 2, tarih: '28.03.2026 23:00', karsilasma: 'Albacete-Castellon' },
+            { no: 3, tarih: '28.03.2026 18:00', karsilasma: 'Exeter City-Leyton Orient' },
+            { no: 4, tarih: '28.03.2026 18:00', karsilasma: 'Bradford-Plymouth' },
+            { no: 5, tarih: '28.03.2026 18:00', karsilasma: 'Reading-Wigan Athletic' },
+            { no: 6, tarih: '28.03.2026 18:00', karsilasma: 'Stockport-Wimbledon' },
+            { no: 7, tarih: '28.03.2026 18:00', karsilasma: 'Wycombe-Port Vale' },
+            { no: 8, tarih: '27.03.2026 21:00', karsilasma: 'Cordoba-Mirandes' },
+            { no: 9, tarih: '28.03.2026 16:00', karsilasma: 'AD Ceuta-Cadiz' },
+            { no: 10, tarih: '28.03.2026 18:15', karsilasma: 'Granada-Huesca' },
+            { no: 11, tarih: '28.03.2026 18:15', karsilasma: 'Real Valladolid-CF Burgos' },
+            { no: 12, tarih: '28.03.2026 20:30', karsilasma: 'Malaga CF-Leganes' },
+            { no: 13, tarih: '28.03.2026 23:00', karsilasma: 'S.Gijon-Deportivo La Coruna' },
+            { no: 14, tarih: '29.03.2026 15:00', karsilasma: 'Eibar-Las Palmas' },
+            { no: 15, tarih: '29.03.2026 19:30', karsilasma: 'Zaragoza-Santander' },
+        ];
+
+        function applyHedefEntries(list) {
+            list.forEach(entry => {
+                const idx = entry.no - 1;
+                if (idx >= 0 && idx < matchesData.length) {
+                    if (entry.tarih) matchesData[idx].tarih = String(entry.tarih).trim();
+                    if (entry.karsilasma) matchesData[idx].karsilasma = String(entry.karsilasma).trim();
+                }
+            });
+        }
+
+        function splitTarihSaat(tarih) {
+            if (!tarih) return ['', ''];
+            const s = String(tarih).trim();
+            const m = s.match(/^(\d{1,2}\.\d{1,2}\.\d{4})\s+(\d{1,2}:\d{2})/);
+            if (m) return [m[1], m[2]];
+            const parts = s.split(/\s+/).filter(Boolean);
+            if (parts.length >= 2) return [parts[0], parts[1]];
+            return [s, ''];
+        }
 
         let combinations = [];
         let selections = {}; // {matchNo: 1|0|2|null}
@@ -413,16 +452,16 @@
                 tr.appendChild(tdNo);
                 
                 // Tarih ve Saat
-                const dateTime = match.tarih.split(' ');
+                const [datePart, timePart] = splitTarihSaat(match.tarih);
                 const tdDate = document.createElement('td');
                 tdDate.className = 'match-date';
-                tdDate.textContent = dateTime[0] || '';
+                tdDate.textContent = datePart;
                 tdDate.setAttribute('data-label', 'Tarih');
                 tr.appendChild(tdDate);
                 
                 const tdTime = document.createElement('td');
                 tdTime.className = 'match-date';
-                tdTime.textContent = dateTime[1] || '';
+                tdTime.textContent = timePart;
                 tdTime.setAttribute('data-label', 'Saat');
                 tr.appendChild(tdTime);
                 
@@ -673,7 +712,7 @@
         async function loadData() {
             try {
                 const base = window.location.pathname.replace(/\/[^/]*$/, '/') || '/';
-                const csvUrl = base + 'combinations_latest.csv';
+                const csvUrl = base + 'combinations_misli_fetched.csv';
                 const hedefUrl = base + 'hedef.json';
 
                 const [csvResponse, hedefResponse] = await Promise.all([
@@ -685,15 +724,10 @@
                 const lines = text.trim().split(/\r?\n/).filter(line => line.length > 0);
                 if (lines.length < 2) throw new Error('CSV dosyasında veri satırı yok');
 
+                applyHedefEntries(HEDEF_DEFAULTS);
                 if (hedefResponse && hedefResponse.ok) {
                     const hedefList = await hedefResponse.json();
-                    hedefList.forEach(entry => {
-                        const idx = entry.no - 1;
-                        if (idx >= 0 && idx < matchesData.length) {
-                            matchesData[idx].tarih = entry.tarih || matchesData[idx].tarih;
-                            matchesData[idx].karsilasma = entry.karsilasma || matchesData[idx].karsilasma;
-                        }
-                    });
+                    applyHedefEntries(hedefList);
                 }
 
                 // CSV ilk satırında maç adları (örn. "1 - Takım A-Takım B; ...") varsa kullan (hedef yoksa yedek)
@@ -747,7 +781,7 @@
             } catch (error) {
                 const errorDiv = document.createElement('div');
                 errorDiv.className = 'error';
-                errorDiv.innerHTML = `<h2>Hata: ${error.message}</h2><p>combinations_latest.csv gerekli; maç isimleri için hedef.json (export_hedef.py ile üretilir) aynı dizinde olmalı.</p>`;
+                errorDiv.innerHTML = `<h2>Hata: ${error.message}</h2><p>combinations_misli_fetched.csv gerekli; maç isimleri için hedef.json (export_hedef.py ile üretilir) aynı dizinde olmalı.</p>`;
                 document.body.innerHTML = '';
                 document.body.appendChild(errorDiv);
             }
