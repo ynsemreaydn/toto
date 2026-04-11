@@ -381,13 +381,9 @@
     </div>
 
         <script>
-        /**
-         * combinations_latest.csv = 600 veri satırı (+1 başlık).
-         * CSV değişince KUPON_CSV_VERSION artır (CDN/tarayıcı önbelleği).
-         */
+        /** CSV değişince KUPON_CSV_VERSION artır (önbellek). */
         const COMBINATIONS_CSV = 'combinations_latest.csv';
-        const KUPON_CSV_VERSION = '4';
-        const BEKLENEN_KUPON_SAYISI = 600;
+        const KUPON_CSV_VERSION = '6';
 
         const matchesData = Array.from({ length: 15 }, (_, i) => ({
             no: i + 1,
@@ -788,11 +784,7 @@
 
                 const note = document.getElementById('dataSourceNote');
                 if (note) {
-                    let extra = '';
-                    if (combinations.length !== BEKLENEN_KUPON_SAYISI) {
-                        extra = ` <span style="color:#c0392b;font-weight:600">· Uyarı: ${combinations.length} satır yüklendi, beklenen ${BEKLENEN_KUPON_SAYISI}. Sunucudaki <code>${COMBINATIONS_CSV}</code> dosyasını kontrol et; gerekirse <code>KUPON_CSV_VERSION</code> değerini artır (önbellek).</span>`;
-                    }
-                    note.innerHTML = `Yüklendi: <strong>${combinations.length}</strong> kupon (15 maç) · <code>${COMBINATIONS_CSV}</code> · Maç bilgisi: <code>hedef.json</code>${extra}`;
+                    note.innerHTML = `Yüklendi: <strong>${combinations.length}</strong> kupon (15 maç) · <code>${COMBINATIONS_CSV}</code> · <code>hedef.json</code>`;
                 }
 
                 renderMatchesTable();
