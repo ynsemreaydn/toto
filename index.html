@@ -173,15 +173,6 @@
             border-color: #229954;
         }
 
-        .sel-lock-note {
-            width: 100%;
-            text-align: center;
-            font-size: 0.75em;
-            color: #27ae60;
-            font-weight: 600;
-            margin-top: 2px;
-        }
-
         .percentage-cell {
             font-weight: bold;
             font-size: 1.1em;
@@ -405,9 +396,6 @@
 <body>
     <div class="container">
         <h1>Kombinasyon Analizi ve Maç Seçim</h1>
-        <p id="dataSourceNote" style="text-align:center;color:#555;margin:-18px 0 24px;font-size:0.95em;">
-            Veri yükleniyor…
-        </p>
 
         <h2>Maç Listesi ve Seçim Yüzdeleri</h2>
         <table class="matches-table">
@@ -563,7 +551,6 @@
             );
         }
 
-        /** Canlı / devre arası: dk; resmî biten 1-X-2: MS; skor var ama süre geçtiyse MS±. Canlı maçlar asla kilitlenmez (yalnızca resmî 1-X-2). */
         function formatDkLabel(match) {
             if (match.sonuc_kilitli) {
                 return 'MS';
@@ -595,16 +582,6 @@
             return '—';
         }
 
-        function dkCellTitle(match) {
-            if (match.sonuc_kilitli) return 'Maç sonu (resmî 1-X-2)';
-            if (match.sonuc_canli_api_dk != null) return 'API dakikası';
-            const t = formatDkLabel(match);
-            if (t === '—') return '';
-            if (t === 'MS±') return 'Skor var; süre aşıldı — resmî sonuç bekleniyor (tahmin değil)';
-            if (!match.sonuc_resmi && match.sonuc_skor) return 'Yerel saat + başlama anına göre tahmini dk (canlı; kilit yok)';
-            return 'Tahmini dk';
-        }
-
         let _liveDkTimer = null;
 
         function updateLiveDkCells() {
@@ -617,9 +594,6 @@
                 el.classList.remove('ms-done', 'pending-dk');
                 if (t === 'MS' || t === 'MS±') el.classList.add('ms-done');
                 else if (t === '—') el.classList.add('pending-dk');
-                const tip = dkCellTitle(m);
-                if (tip) el.setAttribute('title', tip);
-                else el.removeAttribute('title');
             });
         }
 
@@ -779,8 +753,6 @@
                 tdDk.setAttribute('data-label', 'Dk');
                 tdDk.setAttribute('data-dk-no', String(match.no));
                 tdDk.textContent = formatDkLabel(match);
-                const tipTop = dkCellTitle(match);
-                if (tipTop) tdDk.setAttribute('title', tipTop);
                 if (tdDk.textContent === 'MS' || tdDk.textContent === 'MS±') tdDk.classList.add('ms-done');
                 else if (tdDk.textContent === '—') tdDk.classList.add('pending-dk');
                 tr.appendChild(tdDk);
@@ -794,7 +766,6 @@
                 else if (st === '—') tdSonuc.classList.add('pending');
                 else if (!match.sonuc_kilitli && match.sonuc_yazi && !['1', 'X', 'x', '2'].includes(String(match.sonuc_yazi).trim())) {
                     tdSonuc.classList.add('non-1x2');
-                    tdSonuc.title = 'Standart 1-X-2 dışı kolon; filtre kilidi yok.';
                 }
                 tr.appendChild(tdSonuc);
 
@@ -878,8 +849,6 @@
                 tdDkSel.setAttribute('data-label', 'Dk');
                 tdDkSel.setAttribute('data-dk-no', String(match.no));
                 tdDkSel.textContent = formatDkLabel(match);
-                const tipSel = dkCellTitle(match);
-                if (tipSel) tdDkSel.setAttribute('title', tipSel);
                 if (tdDkSel.textContent === 'MS' || tdDkSel.textContent === 'MS±') tdDkSel.classList.add('ms-done');
                 else if (tdDkSel.textContent === '—') tdDkSel.classList.add('pending-dk');
                 tr.appendChild(tdDkSel);
@@ -910,10 +879,6 @@
                     tdSelection.appendChild(mkPill('1', 1));
                     tdSelection.appendChild(mkPill('X', 0));
                     tdSelection.appendChild(mkPill('2', 2));
-                    const note = document.createElement('div');
-                    note.className = 'sel-lock-note';
-                    note.textContent = 'Resmî sonuç (filtreye sabitlendi; canlı değil)';
-                    tdSelection.appendChild(note);
                 } else {
                     tdSelection.className = 'selection-buttons';
 
@@ -1077,8 +1042,7 @@
             if (selectedMatchesCount === 0) {
                 document.getElementById('filterInfo').textContent =
                     `Henüz seçim yapılmadı. ${totalCombinations} kupon var. Her maç için 1, X veya 2 seçerek filtreleme yapabilirsiniz.` +
-                    (lockedCount ? ` Resmî sonucu olan ${lockedCount} maç otomatik uygulanır (değiştirilemez).` : '') +
-                    ` Canlı (resmî olmayan) maçlar seçime kilitlenmez; dakika Dk sütununda.`;
+                    (lockedCount ? ` Resmî sonucu olan ${lockedCount} maç filtreye otomatik uygulanır.` : '');
             } else {
                 const manual = selectedMatchesCount - lockedCount;
                 let extra = '';
@@ -1113,12 +1077,10 @@
                     applyHedefEntries(hedefList);
                 }
 
-                let resultsSource = 'yerel anlık görüntü';
                 let programResults = NESINE_RESULT_SNAPSHOT;
                 const liveList = await fetchNesineProgramResults();
                 if (liveList) {
                     programResults = liveList;
-                    resultsSource = 'Nesine API';
                 }
                 applyProgramResults(programResults);
                 matchesData.forEach((m) => {
@@ -1152,16 +1114,6 @@
                 }
 
                 filterCombinations();
-
-                const note = document.getElementById('dataSourceNote');
-                if (note) {
-                    const kilit = matchesData.filter((m) => m.sonuc_kilitli).length;
-                    note.innerHTML =
-                        `Yüklendi: <strong>${combinations.length}</strong> kupon (15 maç) · gömülü liste · <code>hedef.json</code> · ` +
-                        `sonuçlar: <strong>${resultsSource}</strong>` +
-                        (kilit ? ` · <strong>${kilit}</strong> maç resmî 1-X-2 ile filtreye sabitlendi` : '') +
-                        ` · <strong>Dk</strong>: canlı maçlar kilitlenmez; API dakikası varsa kullanılır, yoksa başlama saatine göre tahmin`;
-                }
 
                 renderMatchesTable();
                 renderSelectionTable();
