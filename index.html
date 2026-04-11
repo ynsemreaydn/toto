@@ -92,6 +92,96 @@
             font-weight: 500;
         }
 
+        .match-skor {
+            font-weight: 600;
+            color: #2c3e50;
+            white-space: nowrap;
+        }
+
+        .match-dk {
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            color: #d35400;
+            white-space: nowrap;
+        }
+
+        .match-dk.ms-done {
+            color: #1e8449;
+        }
+
+        .match-dk.pending-dk {
+            color: #7f8c8d;
+            font-weight: 600;
+        }
+
+        .match-sonuc {
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .match-sonuc.official {
+            color: #1e8449;
+        }
+
+        .match-sonuc.pending {
+            color: #7f8c8d;
+        }
+
+        .match-sonuc.non-1x2 {
+            color: #c0392b;
+            font-size: 0.9em;
+        }
+
+        tbody tr.match-row-official-partial {
+            box-shadow: inset 3px 0 0 #27ae60;
+        }
+
+        .selection-locked {
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .sel-lock-pill {
+            padding: 8px 14px;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 1em;
+            border: 2px solid #dfe6e9;
+            background: #ecf0f1;
+            color: #b2bec3;
+            user-select: none;
+        }
+
+        .sel-lock-pill.on-1 {
+            background: #e74c3c;
+            color: #fff;
+            border-color: #c0392b;
+        }
+
+        .sel-lock-pill.on-0 {
+            background: #f39c12;
+            color: #fff;
+            border-color: #e67e22;
+        }
+
+        .sel-lock-pill.on-2 {
+            background: #27ae60;
+            color: #fff;
+            border-color: #229954;
+        }
+
+        .sel-lock-note {
+            width: 100%;
+            text-align: center;
+            font-size: 0.75em;
+            color: #27ae60;
+            font-weight: 600;
+            margin-top: 2px;
+        }
+
         .percentage-cell {
             font-weight: bold;
             font-size: 1.1em;
@@ -327,6 +417,9 @@
                     <th>Tarih</th>
                     <th>Saat</th>
                     <th>Karşılaşma</th>
+                    <th>Skor</th>
+                    <th>Dk</th>
+                    <th>Sonuç</th>
                     <th>1 Seçimi</th>
                     <th>X Seçimi</th>
                     <th>2 Seçimi</th>
@@ -346,6 +439,9 @@
                 <tr>
                     <th>Maç No</th>
                     <th>Karşılaşma</th>
+                    <th>Skor</th>
+                    <th>Dk</th>
+                    <th>Sonuç</th>
                     <th>Seçim</th>
                     <th>Kalan Kupon</th>
                 </tr>
@@ -398,7 +494,201 @@
             comb_0_pct: 0,
             comb_2_count: 0,
             comb_2_pct: 0,
+            sonuc_skor: null,
+            sonuc_yazi: null,
+            sonuc_resmi: false,
+            sonuc_1x2: null,
+            sonuc_kilitli: false,
+            sonuc_canli_api_dk: null,
+            sonuc_canli_api_flag: false,
         }));
+
+        /** Nesine programResultList — API/CORS yoksa yedek (pno=0 anlık görüntü). */
+        const NESINE_RESULT_SNAPSHOT = [
+            { number: 1, score: '4-2', result: '1', isOfficial: true },
+            { number: 2, score: '3-0', result: '1', isOfficial: true },
+            { number: 3, score: '1-1', result: 'X', isOfficial: true },
+            { number: 4, score: '0-4', result: '2', isOfficial: true },
+            { number: 5, score: null, result: null, isOfficial: false },
+            { number: 6, score: null, result: null, isOfficial: false },
+            { number: 7, score: null, result: null, isOfficial: false },
+            { number: 8, score: null, result: null, isOfficial: false },
+            { number: 9, score: null, result: null, isOfficial: false },
+            { number: 10, score: '0-1', result: '2', isOfficial: true },
+            { number: 11, score: '2-0', result: '1', isOfficial: true },
+            { number: 12, score: null, result: null, isOfficial: false },
+            { number: 13, score: '1-1', result: '0', isOfficial: false },
+            { number: 14, score: '0-0', result: '0', isOfficial: false },
+            { number: 15, score: null, result: null, isOfficial: false },
+        ];
+
+        function mapNesineResultTo1x2(resultStr) {
+            if (resultStr == null || resultStr === '') return null;
+            const u = String(resultStr).trim().toUpperCase();
+            if (u === '1') return 1;
+            if (u === 'X') return 0;
+            if (u === '2') return 2;
+            return null;
+        }
+
+        function parseKickoffMs(tarihStr) {
+            const m = String(tarihStr || '')
+                .trim()
+                .match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})\s+(\d{1,2}):(\d{2})/);
+            if (!m) return NaN;
+            return new Date(+m[3], +m[2] - 1, +m[1], +m[4], +m[5], 0, 0).getTime();
+        }
+
+        function extractApiMinute(item) {
+            const keys = ['liveMinute', 'minute', 'min', 'gameMinute', 'matchMinute', 'dk', 'playMinute', 'dakika'];
+            for (let i = 0; i < keys.length; i++) {
+                const k = keys[i];
+                if (item[k] != null && item[k] !== '') {
+                    const n = Number(item[k]);
+                    if (Number.isFinite(n)) return n;
+                }
+            }
+            return null;
+        }
+
+        function extractApiLiveFlag(item) {
+            return (
+                item.isLive === true ||
+                item.live === true ||
+                item.isPlaying === true ||
+                item.matchLive === true ||
+                String(item.matchStatus || '')
+                    .toLowerCase()
+                    .includes('live')
+            );
+        }
+
+        /** Canlı / devre arası: dk; resmî biten 1-X-2: MS; skor var ama süre geçtiyse MS±. Canlı maçlar asla kilitlenmez (yalnızca resmî 1-X-2). */
+        function formatDkLabel(match) {
+            if (match.sonuc_kilitli) {
+                return 'MS';
+            }
+            if (match.sonuc_canli_api_dk != null && Number.isFinite(match.sonuc_canli_api_dk)) {
+                const n = Math.max(0, Math.min(120, Math.round(match.sonuc_canli_api_dk)));
+                return n + "'";
+            }
+            const kick = parseKickoffMs(match.tarih);
+            if (!Number.isFinite(kick)) return '—';
+            const now = Date.now();
+            if (now < kick) return '—';
+            const elapsed = Math.floor((now - kick) / 60000);
+            const hasScore = !!(match.sonuc_skor && String(match.sonuc_skor).trim());
+
+            if (hasScore && !match.sonuc_resmi) {
+                if (elapsed <= 135) {
+                    const n = Math.min(120, Math.max(0, elapsed));
+                    return n + "'";
+                }
+                return 'MS±';
+            }
+
+            if (!hasScore && match.sonuc_canli_api_flag) {
+                const n = Math.min(95, Math.max(1, elapsed));
+                return n + "'";
+            }
+
+            return '—';
+        }
+
+        function dkCellTitle(match) {
+            if (match.sonuc_kilitli) return 'Maç sonu (resmî 1-X-2)';
+            if (match.sonuc_canli_api_dk != null) return 'API dakikası';
+            const t = formatDkLabel(match);
+            if (t === '—') return '';
+            if (t === 'MS±') return 'Skor var; süre aşıldı — resmî sonuç bekleniyor (tahmin değil)';
+            if (!match.sonuc_resmi && match.sonuc_skor) return 'Yerel saat + başlama anına göre tahmini dk (canlı; kilit yok)';
+            return 'Tahmini dk';
+        }
+
+        let _liveDkTimer = null;
+
+        function updateLiveDkCells() {
+            document.querySelectorAll('[data-dk-no]').forEach((el) => {
+                const no = parseInt(el.getAttribute('data-dk-no'), 10);
+                const m = matchesData[no - 1];
+                if (!m) return;
+                const t = formatDkLabel(m);
+                el.textContent = t;
+                el.classList.remove('ms-done', 'pending-dk');
+                if (t === 'MS' || t === 'MS±') el.classList.add('ms-done');
+                else if (t === '—') el.classList.add('pending-dk');
+                const tip = dkCellTitle(m);
+                if (tip) el.setAttribute('title', tip);
+                else el.removeAttribute('title');
+            });
+        }
+
+        function scheduleLiveDkRefresh() {
+            if (_liveDkTimer) clearInterval(_liveDkTimer);
+            _liveDkTimer = setInterval(updateLiveDkCells, 30000);
+        }
+
+        function sonucHucreMetni(match) {
+            if (match.sonuc_kilitli && match.sonuc_1x2 !== null) {
+                return match.sonuc_1x2 === 1 ? '1' : match.sonuc_1x2 === 0 ? 'X' : '2';
+            }
+            if (match.sonuc_yazi != null && match.sonuc_yazi !== '' && match.sonuc_yazi !== '—') {
+                return match.sonuc_yazi;
+            }
+            return '—';
+        }
+
+        function applyProgramResults(programResultList) {
+            matchesData.forEach((m) => {
+                m.sonuc_skor = null;
+                m.sonuc_yazi = null;
+                m.sonuc_resmi = false;
+                m.sonuc_1x2 = null;
+                m.sonuc_kilitli = false;
+                m.sonuc_canli_api_dk = null;
+                m.sonuc_canli_api_flag = false;
+            });
+            if (!Array.isArray(programResultList)) return;
+            programResultList.forEach((item) => {
+                const n = item.number;
+                const idx = typeof n === 'number' ? n - 1 : parseInt(n, 10) - 1;
+                if (idx < 0 || idx >= matchesData.length) return;
+                const m = matchesData[idx];
+                m.sonuc_skor = item.score != null && item.score !== '' ? String(item.score) : null;
+                m.sonuc_canli_api_dk = extractApiMinute(item);
+                m.sonuc_canli_api_flag = extractApiLiveFlag(item);
+                const r = item.result;
+                if (r == null || r === '') {
+                    m.sonuc_yazi = '—';
+                } else {
+                    m.sonuc_yazi = String(r).trim();
+                }
+                m.sonuc_resmi = !!item.isOfficial;
+                m.sonuc_1x2 = mapNesineResultTo1x2(r);
+                m.sonuc_kilitli = m.sonuc_resmi && m.sonuc_1x2 !== null;
+            });
+        }
+
+        async function fetchNesineProgramResults() {
+            try {
+                const res = await fetch('https://st.nesine.com/v1/Result?pno=0', {
+                    method: 'GET',
+                    headers: {
+                        Accept: 'application/json, text/plain, */*',
+                        Origin: 'https://www.nesine.com',
+                        Referer: 'https://www.nesine.com/',
+                        platformid: '1',
+                        'x-requested-with': 'XMLHttpRequest',
+                    },
+                });
+                if (!res.ok) return null;
+                const data = await res.json();
+                const list = data && data.d && data.d.programResultList;
+                return Array.isArray(list) && list.length ? list : null;
+            } catch (_) {
+                return null;
+            }
+        }
 
         // hedef (8).xlsx → export_hedef.py → hedef.json ile aynı (fetch yoksa yedek)
         const HEDEF_DEFAULTS = [
@@ -477,6 +767,38 @@
                 tdMatch.textContent = match.karsilasma;
                 tdMatch.setAttribute('data-label', 'Karşılaşma');
                 tr.appendChild(tdMatch);
+
+                const tdSkor = document.createElement('td');
+                tdSkor.className = 'match-skor';
+                tdSkor.setAttribute('data-label', 'Skor');
+                tdSkor.textContent = match.sonuc_skor || '—';
+                tr.appendChild(tdSkor);
+
+                const tdDk = document.createElement('td');
+                tdDk.className = 'match-dk';
+                tdDk.setAttribute('data-label', 'Dk');
+                tdDk.setAttribute('data-dk-no', String(match.no));
+                tdDk.textContent = formatDkLabel(match);
+                const tipTop = dkCellTitle(match);
+                if (tipTop) tdDk.setAttribute('title', tipTop);
+                if (tdDk.textContent === 'MS' || tdDk.textContent === 'MS±') tdDk.classList.add('ms-done');
+                else if (tdDk.textContent === '—') tdDk.classList.add('pending-dk');
+                tr.appendChild(tdDk);
+
+                const tdSonuc = document.createElement('td');
+                tdSonuc.className = 'match-sonuc';
+                tdSonuc.setAttribute('data-label', 'Sonuç');
+                const st = sonucHucreMetni(match);
+                tdSonuc.textContent = st;
+                if (match.sonuc_kilitli) tdSonuc.classList.add('official');
+                else if (st === '—') tdSonuc.classList.add('pending');
+                else if (!match.sonuc_kilitli && match.sonuc_yazi && !['1', 'X', 'x', '2'].includes(String(match.sonuc_yazi).trim())) {
+                    tdSonuc.classList.add('non-1x2');
+                    tdSonuc.title = 'Standart 1-X-2 dışı kolon; filtre kilidi yok.';
+                }
+                tr.appendChild(tdSonuc);
+
+                if (match.sonuc_kilitli) tr.classList.add('match-row-official-partial');
                 
                 // 1 Seçimi
                 const td1 = document.createElement('td');
@@ -544,39 +866,85 @@
                 tdMatch.textContent = match.karsilasma;
                 tdMatch.setAttribute('data-label', 'Karşılaşma');
                 tr.appendChild(tdMatch);
+
+                const tdSkorSel = document.createElement('td');
+                tdSkorSel.className = 'match-skor';
+                tdSkorSel.setAttribute('data-label', 'Skor');
+                tdSkorSel.textContent = match.sonuc_skor || '—';
+                tr.appendChild(tdSkorSel);
+
+                const tdDkSel = document.createElement('td');
+                tdDkSel.className = 'match-dk';
+                tdDkSel.setAttribute('data-label', 'Dk');
+                tdDkSel.setAttribute('data-dk-no', String(match.no));
+                tdDkSel.textContent = formatDkLabel(match);
+                const tipSel = dkCellTitle(match);
+                if (tipSel) tdDkSel.setAttribute('title', tipSel);
+                if (tdDkSel.textContent === 'MS' || tdDkSel.textContent === 'MS±') tdDkSel.classList.add('ms-done');
+                else if (tdDkSel.textContent === '—') tdDkSel.classList.add('pending-dk');
+                tr.appendChild(tdDkSel);
+
+                const tdSonucSel = document.createElement('td');
+                tdSonucSel.className = 'match-sonuc';
+                tdSonucSel.setAttribute('data-label', 'Sonuç');
+                tdSonucSel.textContent = sonucHucreMetni(match);
+                if (match.sonuc_kilitli) tdSonucSel.classList.add('official');
+                else if (tdSonucSel.textContent === '—') tdSonucSel.classList.add('pending');
+                tr.appendChild(tdSonucSel);
                 
-                // Seçim Butonları
+                // Seçim Butonları veya resmî sonuç kilidi
                 const tdSelection = document.createElement('td');
-                tdSelection.className = 'selection-buttons';
                 tdSelection.setAttribute('data-label', 'Seçim');
-                
-                const btn1 = document.createElement('button');
-                btn1.className = 'selection-btn';
-                btn1.textContent = '1';
-                btn1.onclick = () => toggleSelection(match.no, 1);
-                if (selections[match.no] === 1) {
-                    btn1.classList.add('selected-1');
+
+                if (match.sonuc_kilitli) {
+                    tdSelection.className = 'selection-locked';
+                    const mkPill = (label, val) => {
+                        const el = document.createElement('span');
+                        el.className = 'sel-lock-pill';
+                        el.textContent = label;
+                        if (match.sonuc_1x2 === val) {
+                            el.classList.add(val === 1 ? 'on-1' : val === 0 ? 'on-0' : 'on-2');
+                        }
+                        return el;
+                    };
+                    tdSelection.appendChild(mkPill('1', 1));
+                    tdSelection.appendChild(mkPill('X', 0));
+                    tdSelection.appendChild(mkPill('2', 2));
+                    const note = document.createElement('div');
+                    note.className = 'sel-lock-note';
+                    note.textContent = 'Resmî sonuç (filtreye sabitlendi; canlı değil)';
+                    tdSelection.appendChild(note);
+                } else {
+                    tdSelection.className = 'selection-buttons';
+
+                    const btn1 = document.createElement('button');
+                    btn1.className = 'selection-btn';
+                    btn1.textContent = '1';
+                    btn1.onclick = () => toggleSelection(match.no, 1);
+                    if (selections[match.no] === 1) {
+                        btn1.classList.add('selected-1');
+                    }
+                    tdSelection.appendChild(btn1);
+
+                    const btn0 = document.createElement('button');
+                    btn0.className = 'selection-btn';
+                    btn0.textContent = 'X';
+                    btn0.onclick = () => toggleSelection(match.no, 0);
+                    if (selections[match.no] === 0) {
+                        btn0.classList.add('selected-0');
+                    }
+                    tdSelection.appendChild(btn0);
+
+                    const btn2 = document.createElement('button');
+                    btn2.className = 'selection-btn';
+                    btn2.textContent = '2';
+                    btn2.onclick = () => toggleSelection(match.no, 2);
+                    if (selections[match.no] === 2) {
+                        btn2.classList.add('selected-2');
+                    }
+                    tdSelection.appendChild(btn2);
                 }
-                tdSelection.appendChild(btn1);
-                
-                const btn0 = document.createElement('button');
-                btn0.className = 'selection-btn';
-                btn0.textContent = 'X';
-                btn0.onclick = () => toggleSelection(match.no, 0);
-                if (selections[match.no] === 0) {
-                    btn0.classList.add('selected-0');
-                }
-                tdSelection.appendChild(btn0);
-                
-                const btn2 = document.createElement('button');
-                btn2.className = 'selection-btn';
-                btn2.textContent = '2';
-                btn2.onclick = () => toggleSelection(match.no, 2);
-                if (selections[match.no] === 2) {
-                    btn2.classList.add('selected-2');
-                }
-                tdSelection.appendChild(btn2);
-                
+
                 tr.appendChild(tdSelection);
                 
                 // Kalan Kupon (dinamik olarak güncellenecek)
@@ -593,6 +961,10 @@
         }
 
         function toggleSelection(matchNo, value) {
+            const idx = matchNo - 1;
+            if (idx >= 0 && idx < matchesData.length && matchesData[idx].sonuc_kilitli) {
+                return;
+            }
             if (selections[matchNo] === value) {
                 delete selections[matchNo];
             } else {
@@ -701,12 +1073,23 @@
             document.getElementById('count13').textContent = counts[13];
             document.getElementById('count12').textContent = counts[12];
             
+            const lockedCount = matchesData.filter((m) => m.sonuc_kilitli).length;
             if (selectedMatchesCount === 0) {
-                document.getElementById('filterInfo').textContent = 
-                    `Henüz seçim yapılmadı. ${totalCombinations} kupon var. Her maç için 1, X veya 2 seçerek filtreleme yapabilirsiniz.`;
+                document.getElementById('filterInfo').textContent =
+                    `Henüz seçim yapılmadı. ${totalCombinations} kupon var. Her maç için 1, X veya 2 seçerek filtreleme yapabilirsiniz.` +
+                    (lockedCount ? ` Resmî sonucu olan ${lockedCount} maç otomatik uygulanır (değiştirilemez).` : '') +
+                    ` Canlı (resmî olmayan) maçlar seçime kilitlenmez; dakika Dk sütununda.`;
             } else {
-                document.getElementById('filterInfo').textContent = 
-                    `${selectedMatchesCount} maç için seçim yapıldı. ${filteredCombinations.length} kupon kaldı.`;
+                const manual = selectedMatchesCount - lockedCount;
+                let extra = '';
+                if (lockedCount > 0) {
+                    extra =
+                        manual > 0
+                            ? ` (${lockedCount} resmî sabit${manual ? `, ${manual} elle` : ''})`
+                            : ` (${lockedCount} resmî sabit)`;
+                }
+                document.getElementById('filterInfo').textContent =
+                    `${selectedMatchesCount} maç için seçim yapıldı${extra}. ${filteredCombinations.length} kupon kaldı.`;
             }
         }
 
@@ -717,6 +1100,8 @@
 
         async function loadData() {
             try {
+                selections = {};
+
                 const base = window.location.pathname.replace(/\/[^/]*$/, '/') || '/';
                 const bust = `v=${encodeURIComponent(KUPON_CSV_VERSION)}`;
                 const hedefUrl = `${base}hedef.json?${bust}`;
@@ -727,6 +1112,20 @@
                     const hedefList = await hedefResponse.json();
                     applyHedefEntries(hedefList);
                 }
+
+                let resultsSource = 'yerel anlık görüntü';
+                let programResults = NESINE_RESULT_SNAPSHOT;
+                const liveList = await fetchNesineProgramResults();
+                if (liveList) {
+                    programResults = liveList;
+                    resultsSource = 'Nesine API';
+                }
+                applyProgramResults(programResults);
+                matchesData.forEach((m) => {
+                    if (m.sonuc_kilitli && m.sonuc_1x2 !== null) {
+                        selections[m.no] = m.sonuc_1x2;
+                    }
+                });
 
                 combinations = EMBEDDED_COUPON_ROWS.map((values, index) => ({
                     id: index + 1,
@@ -756,13 +1155,20 @@
 
                 const note = document.getElementById('dataSourceNote');
                 if (note) {
-                    note.innerHTML = `Yüklendi: <strong>${combinations.length}</strong> kupon (15 maç) · gömülü liste · <code>hedef.json</code>`;
+                    const kilit = matchesData.filter((m) => m.sonuc_kilitli).length;
+                    note.innerHTML =
+                        `Yüklendi: <strong>${combinations.length}</strong> kupon (15 maç) · gömülü liste · <code>hedef.json</code> · ` +
+                        `sonuçlar: <strong>${resultsSource}</strong>` +
+                        (kilit ? ` · <strong>${kilit}</strong> maç resmî 1-X-2 ile filtreye sabitlendi` : '') +
+                        ` · <strong>Dk</strong>: canlı maçlar kilitlenmez; API dakikası varsa kullanılır, yoksa başlama saatine göre tahmin`;
                 }
 
                 renderMatchesTable();
                 renderSelectionTable();
                 updateStats();
                 updateRemainingCounts();
+                updateLiveDkCells();
+                scheduleLiveDkRefresh();
             } catch (error) {
                 const errorDiv = document.createElement('div');
                 errorDiv.className = 'error';
