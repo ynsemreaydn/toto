@@ -17,6 +17,7 @@
 # Allow hedef export (maç isimleri/tarih)
 !hedef.json
 !export_hedef.py
+!embed_coupons_into_index.py
 
 # Allow .gitignore itself
 !.gitignore
