@@ -382,13 +382,11 @@
 
         <script>
         /**
-         * combinations_latest.csv bu projede 600 veri satırı olmalı.
-         * ~2000 görüyorsan: sunucuda hâlâ eski combinations_misli_fetched.csv kullanılıyor,
-         * combinations_latest.csv güncel değil veya tarayıcı/CDN eski dosyayı önbellekten veriyor.
-         * CSV her güncellediğinde KUPON_CSV_VERSION sayısını artır.
+         * combinations_latest.csv = 600 veri satırı (+1 başlık).
+         * CSV değişince KUPON_CSV_VERSION artır (CDN/tarayıcı önbelleği).
          */
         const COMBINATIONS_CSV = 'combinations_latest.csv';
-        const KUPON_CSV_VERSION = '2';
+        const KUPON_CSV_VERSION = '4';
         const BEKLENEN_KUPON_SAYISI = 600;
 
         const matchesData = Array.from({ length: 15 }, (_, i) => ({
