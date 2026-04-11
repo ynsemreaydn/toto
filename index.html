@@ -381,8 +381,15 @@
     </div>
 
         <script>
-        /** Sunucu ile aynı dizinde olmalı: combinations_latest.csv (600 satır), hedef.json */
+        /**
+         * combinations_latest.csv bu projede 600 veri satırı olmalı.
+         * ~2000 görüyorsan: sunucuda hâlâ eski combinations_misli_fetched.csv kullanılıyor,
+         * combinations_latest.csv güncel değil veya tarayıcı/CDN eski dosyayı önbellekten veriyor.
+         * CSV her güncellediğinde KUPON_CSV_VERSION sayısını artır.
+         */
         const COMBINATIONS_CSV = 'combinations_latest.csv';
+        const KUPON_CSV_VERSION = '2';
+        const BEKLENEN_KUPON_SAYISI = 600;
 
         const matchesData = Array.from({ length: 15 }, (_, i) => ({
             no: i + 1,
@@ -717,12 +724,14 @@
         async function loadData() {
             try {
                 const base = window.location.pathname.replace(/\/[^/]*$/, '/') || '/';
-                const csvUrl = base + COMBINATIONS_CSV;
-                const hedefUrl = base + 'hedef.json';
+                const bust = `v=${encodeURIComponent(KUPON_CSV_VERSION)}`;
+                const csvUrl = `${base}${COMBINATIONS_CSV}?${bust}`;
+                const hedefUrl = `${base}hedef.json?${bust}`;
 
+                const noStore = { cache: 'no-store' };
                 const [csvResponse, hedefResponse] = await Promise.all([
-                    fetch(csvUrl),
-                    fetch(hedefUrl).catch(() => null),
+                    fetch(csvUrl, noStore),
+                    fetch(hedefUrl, noStore).catch(() => null),
                 ]);
                 if (!csvResponse.ok) throw new Error(`CSV yüklenemedi: ${csvResponse.status} ${csvResponse.statusText}`);
                 const text = await csvResponse.text();
@@ -781,7 +790,11 @@
 
                 const note = document.getElementById('dataSourceNote');
                 if (note) {
-                    note.innerHTML = `Yüklendi: <strong>${combinations.length}</strong> kupon (15 maç) · <code>${COMBINATIONS_CSV}</code> · Maç bilgisi: <code>hedef.json</code>`;
+                    let extra = '';
+                    if (combinations.length !== BEKLENEN_KUPON_SAYISI) {
+                        extra = ` <span style="color:#c0392b;font-weight:600">· Uyarı: ${combinations.length} satır yüklendi, beklenen ${BEKLENEN_KUPON_SAYISI}. Sunucudaki <code>${COMBINATIONS_CSV}</code> dosyasını kontrol et; gerekirse <code>KUPON_CSV_VERSION</code> değerini artır (önbellek).</span>`;
+                    }
+                    note.innerHTML = `Yüklendi: <strong>${combinations.length}</strong> kupon (15 maç) · <code>${COMBINATIONS_CSV}</code> · Maç bilgisi: <code>hedef.json</code>${extra}`;
                 }
 
                 renderMatchesTable();
