@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>600 Kupon — Kombinasyon Analizi</title>
     <style>
         * {
@@ -594,7 +597,36 @@
             if (_nesinePollTimer) clearInterval(_nesinePollTimer);
             _nesinePollTimer = setInterval(() => {
                 pullNesineResultsAndRefreshUi().catch(() => {});
-            }, 45000);
+            }, 30000);
+            if (!window.__nesineVisBound) {
+                window.__nesineVisBound = true;
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'visible') {
+                        pullNesineResultsAndRefreshUi().catch(() => {});
+                    }
+                });
+                window.addEventListener('pageshow', (ev) => {
+                    if (ev.persisted) {
+                        pullNesineResultsAndRefreshUi().catch(() => {});
+                    }
+                });
+            }
+        }
+
+        function joinNesineTarihSaat(dateStr, timeStr) {
+            const d = dateStr != null ? String(dateStr).trim() : '';
+            const t = timeStr != null ? String(timeStr).trim() : '';
+            if (d && t) return d + ' ' + t;
+            return d || t;
+        }
+
+        function karsilasmaFromNesineItem(item) {
+            const n = item.name != null ? String(item.name).trim() : '';
+            if (n) return n;
+            const h = item.homeTeam != null ? String(item.homeTeam).trim() : '';
+            const a = item.awayTeam != null ? String(item.awayTeam).trim() : '';
+            if (h || a) return [h, a].filter(Boolean).join('-');
+            return '';
         }
 
         function sonucHucreMetni(match) {
@@ -625,6 +657,14 @@
                 const idx = typeof n === 'number' ? n - 1 : parseInt(n, 10) - 1;
                 if (idx < 0 || idx >= matchesData.length) return;
                 const m = matchesData[idx];
+                const apiKarsilasma = karsilasmaFromNesineItem(item);
+                if (apiKarsilasma) {
+                    m.karsilasma = apiKarsilasma;
+                }
+                const apiTarih = joinNesineTarihSaat(item.date, item.time);
+                if (apiTarih) {
+                    m.tarih = apiTarih;
+                }
                 m.sonuc_skor = item.score != null && item.score !== '' ? String(item.score) : null;
                 m.sonuc_canli_api_dk = extractApiMinute(item);
                 m.sonuc_canli_api_flag = extractApiLiveFlag(item);
@@ -642,7 +682,9 @@
 
         async function fetchNesineProgramResults() {
             try {
-                const res = await fetch('https://st.nesine.com/v1/Result?pno=0', {
+                const bust = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+                const url = 'https://st.nesine.com/v1/Result?pno=0&_=' + encodeURIComponent(bust);
+                const res = await fetch(url, {
                     method: 'GET',
                     cache: 'no-store',
                     headers: {
@@ -651,6 +693,8 @@
                         Referer: 'https://www.nesine.com/',
                         platformid: '1',
                         'x-requested-with': 'XMLHttpRequest',
+                        'Cache-Control': 'no-cache',
+                        Pragma: 'no-cache',
                     },
                 });
                 if (!res.ok) return null;
