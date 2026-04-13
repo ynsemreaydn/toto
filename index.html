@@ -114,6 +114,11 @@
             font-weight: 600;
         }
 
+        .match-dk.dk-playing {
+            color: #c0392b;
+            font-weight: 700;
+        }
+
         .match-sonuc {
             font-weight: 700;
             white-space: nowrap;
@@ -409,7 +414,7 @@
                     <th>Dk</th>
                     <th>Sonuç</th>
                     <th>1 Seçimi</th>
-                    <th>X Seçimi</th>
+                    <th>0 Seçimi</th>
                     <th>2 Seçimi</th>
                 </tr>
             </thead>
@@ -419,7 +424,7 @@
 
         <h2>Seçim Yap ve Filtrele</h2>
         <div class="filter-info" id="filterInfo">
-            Henüz seçim yapılmadı. Her maç için 1, X veya 2 seçerek filtreleme yapabilirsiniz.
+            Henüz seçim yapılmadı. Her maç için 1, 0 veya 2 seçerek filtreleme yapabilirsiniz.
         </div>
         
         <table class="selection-table">
@@ -491,7 +496,7 @@
             sonuc_canli_api_flag: false,
         }));
 
-        /** Nesine programResultList — API/CORS yoksa yedek (pno=0 anlık görüntü). */
+        /** Nesine programResultList — yalnızca API isteği başarısız olursa (ör. CORS). */
         const NESINE_RESULT_SNAPSHOT = [
             { number: 1, score: '4-2', result: '1', isOfficial: true },
             { number: 2, score: '3-0', result: '1', isOfficial: true },
@@ -519,95 +524,87 @@
             return null;
         }
 
-        function parseKickoffMs(tarihStr) {
-            const m = String(tarihStr || '')
-                .trim()
-                .match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})\s+(\d{1,2}):(\d{2})/);
-            if (!m) return NaN;
-            return new Date(+m[3], +m[2] - 1, +m[1], +m[4], +m[5], 0, 0).getTime();
-        }
-
         function extractApiMinute(item) {
             const keys = ['liveMinute', 'minute', 'min', 'gameMinute', 'matchMinute', 'dk', 'playMinute', 'dakika'];
             for (let i = 0; i < keys.length; i++) {
                 const k = keys[i];
-                if (item[k] != null && item[k] !== '') {
-                    const n = Number(item[k]);
-                    if (Number.isFinite(n)) return n;
+                const raw = item[k];
+                if (raw == null || raw === '') continue;
+                const n = Number(raw);
+                if (Number.isFinite(n)) return n;
+                const m = String(raw).match(/(\d+)/);
+                if (m) {
+                    const x = Number(m[1]);
+                    if (Number.isFinite(x)) return x;
                 }
             }
             return null;
         }
 
         function extractApiLiveFlag(item) {
+            const st = String(item.matchStatus || item.gameStatus || item.status || item.state || '').toLowerCase();
             return (
                 item.isLive === true ||
                 item.live === true ||
                 item.isPlaying === true ||
                 item.matchLive === true ||
-                String(item.matchStatus || '')
-                    .toLowerCase()
-                    .includes('live')
+                item.inPlay === true ||
+                st.includes('live') ||
+                st === 'playing' ||
+                st === 'inplay'
             );
         }
 
         function formatDkLabel(match) {
-            if (match.sonuc_kilitli) {
-                return 'MS';
-            }
+            if (match.sonuc_kilitli) return 'MS';
             if (match.sonuc_canli_api_dk != null && Number.isFinite(match.sonuc_canli_api_dk)) {
                 const n = Math.max(0, Math.min(120, Math.round(match.sonuc_canli_api_dk)));
                 return n + "'";
             }
-            const kick = parseKickoffMs(match.tarih);
-            if (!Number.isFinite(kick)) return '—';
-            const now = Date.now();
-            if (now < kick) return '—';
-            const elapsed = Math.floor((now - kick) / 60000);
-            const hasScore = !!(match.sonuc_skor && String(match.sonuc_skor).trim());
-
-            if (hasScore && !match.sonuc_resmi) {
-                if (elapsed <= 135) {
-                    const n = Math.min(120, Math.max(0, elapsed));
-                    return n + "'";
-                }
-                return 'MS±';
-            }
-
-            if (!hasScore && match.sonuc_canli_api_flag) {
-                const n = Math.min(95, Math.max(1, elapsed));
-                return n + "'";
-            }
-
+            if (match.sonuc_canli_api_flag) return 'Oynanıyor';
             return '—';
         }
 
-        let _liveDkTimer = null;
+        let _nesinePollTimer = null;
+        let _nesinePollBusy = false;
 
-        function updateLiveDkCells() {
-            document.querySelectorAll('[data-dk-no]').forEach((el) => {
-                const no = parseInt(el.getAttribute('data-dk-no'), 10);
-                const m = matchesData[no - 1];
-                if (!m) return;
-                const t = formatDkLabel(m);
-                el.textContent = t;
-                el.classList.remove('ms-done', 'pending-dk');
-                if (t === 'MS' || t === 'MS±') el.classList.add('ms-done');
-                else if (t === '—') el.classList.add('pending-dk');
-            });
+        async function pullNesineResultsAndRefreshUi() {
+            if (_nesinePollBusy) return;
+            _nesinePollBusy = true;
+            try {
+                const list = await fetchNesineProgramResults();
+                if (!list || !list.length) return;
+                applyProgramResults(list);
+                matchesData.forEach((m) => {
+                    if (m.sonuc_kilitli && m.sonuc_1x2 !== null) {
+                        selections[m.no] = m.sonuc_1x2;
+                    }
+                });
+                filterCombinations();
+                renderMatchesTable();
+                renderSelectionTable();
+                updateStats();
+                updateRemainingCounts();
+            } finally {
+                _nesinePollBusy = false;
+            }
         }
 
-        function scheduleLiveDkRefresh() {
-            if (_liveDkTimer) clearInterval(_liveDkTimer);
-            _liveDkTimer = setInterval(updateLiveDkCells, 30000);
+        function scheduleNesinePoll() {
+            if (_nesinePollTimer) clearInterval(_nesinePollTimer);
+            _nesinePollTimer = setInterval(() => {
+                pullNesineResultsAndRefreshUi().catch(() => {});
+            }, 45000);
         }
 
         function sonucHucreMetni(match) {
             if (match.sonuc_kilitli && match.sonuc_1x2 !== null) {
-                return match.sonuc_1x2 === 1 ? '1' : match.sonuc_1x2 === 0 ? 'X' : '2';
+                return match.sonuc_1x2 === 1 ? '1' : match.sonuc_1x2 === 0 ? '0' : '2';
             }
             if (match.sonuc_yazi != null && match.sonuc_yazi !== '' && match.sonuc_yazi !== '—') {
-                return match.sonuc_yazi;
+                const t = String(match.sonuc_yazi).trim();
+                if (t.toUpperCase() === 'X') return '0';
+                return t;
             }
             return '—';
         }
@@ -647,6 +644,7 @@
             try {
                 const res = await fetch('https://st.nesine.com/v1/Result?pno=0', {
                     method: 'GET',
+                    cache: 'no-store',
                     headers: {
                         Accept: 'application/json, text/plain, */*',
                         Origin: 'https://www.nesine.com',
@@ -751,10 +749,11 @@
                 const tdDk = document.createElement('td');
                 tdDk.className = 'match-dk';
                 tdDk.setAttribute('data-label', 'Dk');
-                tdDk.setAttribute('data-dk-no', String(match.no));
-                tdDk.textContent = formatDkLabel(match);
-                if (tdDk.textContent === 'MS' || tdDk.textContent === 'MS±') tdDk.classList.add('ms-done');
-                else if (tdDk.textContent === '—') tdDk.classList.add('pending-dk');
+                const dkTxt = formatDkLabel(match);
+                tdDk.textContent = dkTxt;
+                if (dkTxt === 'MS') tdDk.classList.add('ms-done');
+                else if (dkTxt === 'Oynanıyor') tdDk.classList.add('dk-playing');
+                else if (dkTxt === '—') tdDk.classList.add('pending-dk');
                 tr.appendChild(tdDk);
 
                 const tdSonuc = document.createElement('td');
@@ -764,7 +763,12 @@
                 tdSonuc.textContent = st;
                 if (match.sonuc_kilitli) tdSonuc.classList.add('official');
                 else if (st === '—') tdSonuc.classList.add('pending');
-                else if (!match.sonuc_kilitli && match.sonuc_yazi && !['1', 'X', 'x', '2'].includes(String(match.sonuc_yazi).trim())) {
+                else if (
+                    !match.sonuc_kilitli &&
+                    match.sonuc_yazi &&
+                    match.sonuc_yazi !== '—' &&
+                    mapNesineResultTo1x2(match.sonuc_yazi) === null
+                ) {
                     tdSonuc.classList.add('non-1x2');
                 }
                 tr.appendChild(tdSonuc);
@@ -785,10 +789,10 @@
                 `;
                 tr.appendChild(td1);
                 
-                // X Seçimi
+                // 0 Seçimi
                 const tdX = document.createElement('td');
                 tdX.className = 'percentage-cell';
-                tdX.setAttribute('data-label', 'X Seçimi');
+                tdX.setAttribute('data-label', '0 Seçimi');
                 tdX.innerHTML = `
                     ${match.comb_0_pct.toFixed(2)}% (${match.comb_0_count})
                     <div class="percentage-bar">
@@ -847,10 +851,11 @@
                 const tdDkSel = document.createElement('td');
                 tdDkSel.className = 'match-dk';
                 tdDkSel.setAttribute('data-label', 'Dk');
-                tdDkSel.setAttribute('data-dk-no', String(match.no));
-                tdDkSel.textContent = formatDkLabel(match);
-                if (tdDkSel.textContent === 'MS' || tdDkSel.textContent === 'MS±') tdDkSel.classList.add('ms-done');
-                else if (tdDkSel.textContent === '—') tdDkSel.classList.add('pending-dk');
+                const dkSelTxt = formatDkLabel(match);
+                tdDkSel.textContent = dkSelTxt;
+                if (dkSelTxt === 'MS') tdDkSel.classList.add('ms-done');
+                else if (dkSelTxt === 'Oynanıyor') tdDkSel.classList.add('dk-playing');
+                else if (dkSelTxt === '—') tdDkSel.classList.add('pending-dk');
                 tr.appendChild(tdDkSel);
 
                 const tdSonucSel = document.createElement('td');
@@ -877,7 +882,7 @@
                         return el;
                     };
                     tdSelection.appendChild(mkPill('1', 1));
-                    tdSelection.appendChild(mkPill('X', 0));
+                    tdSelection.appendChild(mkPill('0', 0));
                     tdSelection.appendChild(mkPill('2', 2));
                 } else {
                     tdSelection.className = 'selection-buttons';
@@ -893,7 +898,7 @@
 
                     const btn0 = document.createElement('button');
                     btn0.className = 'selection-btn';
-                    btn0.textContent = 'X';
+                    btn0.textContent = '0';
                     btn0.onclick = () => toggleSelection(match.no, 0);
                     if (selections[match.no] === 0) {
                         btn0.classList.add('selected-0');
@@ -1041,7 +1046,7 @@
             const lockedCount = matchesData.filter((m) => m.sonuc_kilitli).length;
             if (selectedMatchesCount === 0) {
                 document.getElementById('filterInfo').textContent =
-                    `Henüz seçim yapılmadı. ${totalCombinations} kupon var. Her maç için 1, X veya 2 seçerek filtreleme yapabilirsiniz.` +
+                    `Henüz seçim yapılmadı. ${totalCombinations} kupon var. Her maç için 1, 0 veya 2 seçerek filtreleme yapabilirsiniz.` +
                     (lockedCount ? ` Resmî sonucu olan ${lockedCount} maç filtreye otomatik uygulanır.` : '');
             } else {
                 const manual = selectedMatchesCount - lockedCount;
@@ -1077,10 +1082,9 @@
                     applyHedefEntries(hedefList);
                 }
 
-                let programResults = NESINE_RESULT_SNAPSHOT;
-                const liveList = await fetchNesineProgramResults();
-                if (liveList) {
-                    programResults = liveList;
+                let programResults = await fetchNesineProgramResults();
+                if (!programResults || !programResults.length) {
+                    programResults = NESINE_RESULT_SNAPSHOT;
                 }
                 applyProgramResults(programResults);
                 matchesData.forEach((m) => {
@@ -1119,8 +1123,7 @@
                 renderSelectionTable();
                 updateStats();
                 updateRemainingCounts();
-                updateLiveDkCells();
-                scheduleLiveDkRefresh();
+                scheduleNesinePoll();
             } catch (error) {
                 const errorDiv = document.createElement('div');
                 errorDiv.className = 'error';
