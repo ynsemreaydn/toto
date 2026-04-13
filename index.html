@@ -101,27 +101,6 @@
             white-space: nowrap;
         }
 
-        .match-dk {
-            font-weight: 700;
-            font-variant-numeric: tabular-nums;
-            color: #d35400;
-            white-space: nowrap;
-        }
-
-        .match-dk.ms-done {
-            color: #1e8449;
-        }
-
-        .match-dk.pending-dk {
-            color: #7f8c8d;
-            font-weight: 600;
-        }
-
-        .match-dk.dk-playing {
-            color: #c0392b;
-            font-weight: 700;
-        }
-
         .match-sonuc {
             font-weight: 700;
             white-space: nowrap;
@@ -414,7 +393,6 @@
                     <th>Saat</th>
                     <th>Karşılaşma</th>
                     <th>Skor</th>
-                    <th>Dk</th>
                     <th>Sonuç</th>
                     <th>1 Seçimi</th>
                     <th>0 Seçimi</th>
@@ -436,7 +414,6 @@
                     <th>Maç No</th>
                     <th>Karşılaşma</th>
                     <th>Skor</th>
-                    <th>Dk</th>
                     <th>Sonuç</th>
                     <th>Seçim</th>
                     <th>Kalan Kupon</th>
@@ -495,8 +472,6 @@
             sonuc_resmi: false,
             sonuc_1x2: null,
             sonuc_kilitli: false,
-            sonuc_canli_api_dk: null,
-            sonuc_canli_api_flag: false,
         }));
 
         /** Nesine GET /v1/Result?pno=0 programResultList — CORS/network yoksa kullanılır (curl ile senkron). */
@@ -525,47 +500,6 @@
             if (u === 'X') return 0;
             if (u === '2') return 2;
             return null;
-        }
-
-        function extractApiMinute(item) {
-            const keys = ['liveMinute', 'minute', 'min', 'gameMinute', 'matchMinute', 'dk', 'playMinute', 'dakika'];
-            for (let i = 0; i < keys.length; i++) {
-                const k = keys[i];
-                const raw = item[k];
-                if (raw == null || raw === '') continue;
-                const n = Number(raw);
-                if (Number.isFinite(n)) return n;
-                const m = String(raw).match(/(\d+)/);
-                if (m) {
-                    const x = Number(m[1]);
-                    if (Number.isFinite(x)) return x;
-                }
-            }
-            return null;
-        }
-
-        function extractApiLiveFlag(item) {
-            const st = String(item.matchStatus || item.gameStatus || item.status || item.state || '').toLowerCase();
-            return (
-                item.isLive === true ||
-                item.live === true ||
-                item.isPlaying === true ||
-                item.matchLive === true ||
-                item.inPlay === true ||
-                st.includes('live') ||
-                st === 'playing' ||
-                st === 'inplay'
-            );
-        }
-
-        function formatDkLabel(match) {
-            if (match.sonuc_kilitli) return 'MS';
-            if (match.sonuc_canli_api_dk != null && Number.isFinite(match.sonuc_canli_api_dk)) {
-                const n = Math.max(0, Math.min(120, Math.round(match.sonuc_canli_api_dk)));
-                return n + "'";
-            }
-            if (match.sonuc_canli_api_flag) return 'Oynanıyor';
-            return '—';
         }
 
         let _nesinePollTimer = null;
@@ -648,8 +582,6 @@
                 m.sonuc_resmi = false;
                 m.sonuc_1x2 = null;
                 m.sonuc_kilitli = false;
-                m.sonuc_canli_api_dk = null;
-                m.sonuc_canli_api_flag = false;
             });
             if (!Array.isArray(programResultList)) return;
             programResultList.forEach((item) => {
@@ -666,8 +598,6 @@
                     m.tarih = apiTarih;
                 }
                 m.sonuc_skor = item.score != null && item.score !== '' ? String(item.score) : null;
-                m.sonuc_canli_api_dk = extractApiMinute(item);
-                m.sonuc_canli_api_flag = extractApiLiveFlag(item);
                 const r = item.result;
                 if (r == null || r === '') {
                     m.sonuc_yazi = '—';
@@ -790,16 +720,6 @@
                 tdSkor.textContent = match.sonuc_skor || '—';
                 tr.appendChild(tdSkor);
 
-                const tdDk = document.createElement('td');
-                tdDk.className = 'match-dk';
-                tdDk.setAttribute('data-label', 'Dk');
-                const dkTxt = formatDkLabel(match);
-                tdDk.textContent = dkTxt;
-                if (dkTxt === 'MS') tdDk.classList.add('ms-done');
-                else if (dkTxt === 'Oynanıyor') tdDk.classList.add('dk-playing');
-                else if (dkTxt === '—') tdDk.classList.add('pending-dk');
-                tr.appendChild(tdDk);
-
                 const tdSonuc = document.createElement('td');
                 tdSonuc.className = 'match-sonuc';
                 tdSonuc.setAttribute('data-label', 'Sonuç');
@@ -891,16 +811,6 @@
                 tdSkorSel.setAttribute('data-label', 'Skor');
                 tdSkorSel.textContent = match.sonuc_skor || '—';
                 tr.appendChild(tdSkorSel);
-
-                const tdDkSel = document.createElement('td');
-                tdDkSel.className = 'match-dk';
-                tdDkSel.setAttribute('data-label', 'Dk');
-                const dkSelTxt = formatDkLabel(match);
-                tdDkSel.textContent = dkSelTxt;
-                if (dkSelTxt === 'MS') tdDkSel.classList.add('ms-done');
-                else if (dkSelTxt === 'Oynanıyor') tdDkSel.classList.add('dk-playing');
-                else if (dkSelTxt === '—') tdDkSel.classList.add('pending-dk');
-                tr.appendChild(tdDkSel);
 
                 const tdSonucSel = document.createElement('td');
                 tdSonucSel.className = 'match-sonuc';
@@ -1035,6 +945,17 @@
             });
         }
 
+        function countSelectionHits(comb, sel) {
+            let h = 0;
+            for (const matchNo in sel) {
+                const idx = parseInt(matchNo, 10) - 1;
+                if (idx >= 0 && idx < comb.values.length && comb.values[idx] === sel[matchNo]) {
+                    h++;
+                }
+            }
+            return h;
+        }
+
         function updateStats() {
             const selectedMatchesCount = Object.keys(selections).length;
             const totalCombinations = combinations.length;
@@ -1049,36 +970,12 @@
                 counts[13] = totalCombinations;
                 counts[12] = totalCombinations;
             } else {
-                if (filteredCombinations.length === 0) {
-                    const correctCount = 15 - selectedMatchesCount;
-                    if (correctCount >= 14) {
-                        counts[14] = totalCombinations;
-                        counts[13] = totalCombinations;
-                        counts[12] = totalCombinations;
-                    } else if (correctCount === 13) {
-                        counts[13] = totalCombinations;
-                        counts[12] = totalCombinations;
-                    } else if (correctCount === 12) {
-                        counts[12] = totalCombinations;
-                    }
-                    counts[15] = 0;
-                } else {
-                    if (selectedMatchesCount === 15) {
-                        counts[15] = filteredCombinations.length;
-                    } else if (selectedMatchesCount === 14) {
-                        counts[14] = filteredCombinations.length;
-                        counts[13] = totalCombinations;
-                        counts[12] = totalCombinations;
-                    } else if (selectedMatchesCount === 13) {
-                        counts[13] = filteredCombinations.length;
-                        counts[12] = totalCombinations;
-                    } else if (selectedMatchesCount === 12) {
-                        counts[12] = filteredCombinations.length;
-                    } else if (selectedMatchesCount < 12) {
-                        counts[12] = filteredCombinations.length;
-                        counts[13] = totalCombinations;
-                        counts[14] = totalCombinations;
-                    }
+                for (let i = 0; i < combinations.length; i++) {
+                    const hits = countSelectionHits(combinations[i], selections);
+                    if (hits === 15) counts[15]++;
+                    else if (hits === 14) counts[14]++;
+                    else if (hits === 13) counts[13]++;
+                    else if (hits === 12) counts[12]++;
                 }
             }
             
