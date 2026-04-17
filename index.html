@@ -276,6 +276,13 @@
             margin-top: 20px;
         }
 
+        .bilen-footnote {
+            margin-top: 14px;
+            font-size: 0.9em;
+            color: #555;
+            line-height: 1.45;
+        }
+
         .coupon-stat-card {
             background: white;
             padding: 20px;
@@ -446,6 +453,7 @@
                     <div class="coupon-stat-value" id="count12">0</div>
                 </div>
             </div>
+            <p id="bilenFootnote" class="bilen-footnote" aria-live="polite"></p>
         </div>
     </div>
 
@@ -638,21 +646,21 @@
 
         // hedef (8).xlsx → export_hedef.py → hedef.json ile aynı (fetch yoksa yedek)
         const HEDEF_DEFAULTS = [
-            { no: 1, tarih: '10.04.2026 20:00', karsilasma: 'Beşiktaş A.Ş.-Antalyaspor' },
-            { no: 2, tarih: '11.04.2026 14:30', karsilasma: 'Başakşehir FK-Gençlerbirliği' },
-            { no: 3, tarih: '11.04.2026 17:00', karsilasma: 'Alanyaspor-Trabzonspor A.Ş.' },
-            { no: 4, tarih: '11.04.2026 20:00', karsilasma: 'Kayserispor-Fenerbahçe A.Ş.' },
-            { no: 5, tarih: '12.04.2026 14:30', karsilasma: 'Konyaspor-Fatih Karagümrük' },
-            { no: 6, tarih: '12.04.2026 17:00', karsilasma: 'Göztepe A.Ş.-Kasımpaşa A.Ş.' },
-            { no: 7, tarih: '12.04.2026 20:00', karsilasma: 'Galatasaray A.Ş.-Kocaelispor' },
-            { no: 8, tarih: '13.04.2026 20:00', karsilasma: 'Eyüpspor-Samsunspor A.Ş.' },
-            { no: 9, tarih: '13.04.2026 20:00', karsilasma: 'Çaykur Rizespor A.Ş.-Gaziantep F.K. A.Ş.' },
-            { no: 10, tarih: '11.04.2026 16:30', karsilasma: 'B. Dortmund-B. Leverkusen' },
-            { no: 11, tarih: '11.04.2026 19:30', karsilasma: 'Liverpool-Fulham' },
-            { no: 12, tarih: '12.04.2026 18:30', karsilasma: 'Chelsea-Manchester City' },
-            { no: 13, tarih: '11.04.2026 22:00', karsilasma: 'Sevilla-Atletico Madrid' },
-            { no: 14, tarih: '11.04.2026 21:45', karsilasma: 'Atalanta-Juventus' },
-            { no: 15, tarih: '12.04.2026 16:00', karsilasma: 'Parma-Napoli' },
+            { no: 1, tarih: '17.04.2026 20:00', karsilasma: 'Antalyaspor-Konyaspor' },
+            { no: 2, tarih: '17.04.2026 20:00', karsilasma: 'Fenerbahçe A.Ş.-Çaykur Rizespor A.Ş.' },
+            { no: 3, tarih: '18.04.2026 14:30', karsilasma: 'Fatih Karagümrük-Eyüpspor' },
+            { no: 4, tarih: '18.04.2026 17:00', karsilasma: 'Kocaelispor-Göztepe A.Ş.' },
+            { no: 5, tarih: '18.04.2026 20:00', karsilasma: 'Gençlerbirliği-Galatasaray A.Ş.' },
+            { no: 6, tarih: '19.04.2026 14:30', karsilasma: 'Kasımpaşa A.Ş.-Alanyaspor' },
+            { no: 7, tarih: '19.04.2026 17:00', karsilasma: 'Samsunspor A.Ş.-Beşiktaş A.Ş.' },
+            { no: 8, tarih: '19.04.2026 20:00', karsilasma: 'Trabzonspor A.Ş.-Başakşehir FK' },
+            { no: 9, tarih: '20.04.2026 20:00', karsilasma: 'Gaziantep F.K. A.Ş.-Kayserispor' },
+            { no: 10, tarih: '18.04.2026 16:30', karsilasma: 'Hoffenheim-B. Dortmund' },
+            { no: 11, tarih: '18.04.2026 22:00', karsilasma: 'Chelsea-Manchester United' },
+            { no: 12, tarih: '19.04.2026 16:00', karsilasma: 'Everton-Liverpool' },
+            { no: 13, tarih: '19.04.2026 18:30', karsilasma: 'Manchester City-Arsenal' },
+            { no: 14, tarih: '18.04.2026 19:00', karsilasma: 'Napoli-Lazio' },
+            { no: 15, tarih: '18.04.2026 21:45', karsilasma: 'AS Roma-Atalanta' },
         ];
 
         function applyHedefEntries(list) {
@@ -960,15 +968,19 @@
             const selectedMatchesCount = Object.keys(selections).length;
             const totalCombinations = combinations.length;
             const counts = { 15: 0, 14: 0, 13: 0, 12: 0 };
+            const footnoteEl = document.getElementById('bilenFootnote');
             
             const totalCoupons = filteredCombinations.length;
             document.getElementById('totalCoupons').textContent = totalCoupons;
             
+            let maxHits = -1;
+            let countAtMaxHits = 0;
             if (selectedMatchesCount === 0) {
                 counts[15] = totalCombinations;
                 counts[14] = totalCombinations;
                 counts[13] = totalCombinations;
                 counts[12] = totalCombinations;
+                if (footnoteEl) footnoteEl.textContent = '';
             } else {
                 for (let i = 0; i < combinations.length; i++) {
                     const hits = countSelectionHits(combinations[i], selections);
@@ -976,6 +988,22 @@
                     else if (hits === 14) counts[14]++;
                     else if (hits === 13) counts[13]++;
                     else if (hits === 12) counts[12]++;
+                    if (hits > maxHits) {
+                        maxHits = hits;
+                        countAtMaxHits = 1;
+                    } else if (hits === maxHits) {
+                        countAtMaxHits++;
+                    }
+                }
+                if (maxHits < 0) {
+                    maxHits = 0;
+                    countAtMaxHits = 0;
+                }
+                if (footnoteEl) {
+                    footnoteEl.textContent =
+                        `15 / 14 / 13 / 12 Bilen: seçili ${selectedMatchesCount} maçta resmî seçimle tam o kadar sütunda eşleşen kupon sayısıdır (henüz sonuçlanmamış maçlar seçimde yoksa üst sepetler 0 kalabilir). ` +
+                        `Bu kupon setinde şu an en fazla ${maxHits} doğru var (${countAtMaxHits} kupon); ` +
+                        `tam 12 sütunda eşleşen yoksa 12 Bilen 0 görünür.`;
                 }
             }
             
